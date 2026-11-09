@@ -1,0 +1,68 @@
+# Scoring settings. Layer 1 (base model) is learned; everything here is rule-based and tunable.
+# All weights are in logit units and are added to the base model's logit.
+
+model:
+  C: 1.0                         # L2 strength for logistic regression
+  landlord_prior_strength: 10    # m in (r + m*mu) / (n + m)
+  global_rate_prior: 0.5         # mu used until at least min_global_cases have closed
+  min_global_cases: 50
+  validation_share: 0.20         # newest share of closed history used to set thresholds
+  prior_filings_cap: 5
+  defendant_count_cap: 4
+  days_to_hearing_clip: [0, 120]
+
+tiers:
+  recall_target: 0.95            # High threshold t_H: highest score keeping recall >= this
+  medium_recall_target: 0.99     # Low threshold t_L: High+Medium keep recall >= this
+
+layer2:
+  overlap:   {overlap: 0.8, bridgeable: 0.3, wide: -0.6, unknown: 0.0}
+  goals:     {aligned: 0.5, partial: 0.1, conflict: -0.6, unknown: 0.0}
+  mediation: {both_willing: 1.2, one_willing: 0.3, one_refuses: -0.5, unknown: 0.0}
+  assistance_pending: 0.3
+  fee_waiver_offered: 0.2
+  moveout_extension_matches_tenant: 0.3
+  legal_issue: 0.0               # flag only; never moves the probability by default
+  bridgeable_gap_pct: 0.15
+  assumed_fee_share: 0.0         # if > 0, used when the landlord gives no fee amount
+  pending_unknown_counts_as_bridge: true
+  both_willing_floor_at_high: true
+
+confidence:
+  both_responded: 2
+  one_responded: 1
+  landlord_history_min_cases: 20
+  landlord_history: 1
+  overlap: {overlap: 1, bridgeable: 0, wide: -1, unknown: 0}
+  margin: 0.15
+  margin_points: 1
+  tenants_disagree: -1
+  unknown_assistance_bridge: -1
+  high_at: 4
+  medium_at: 2
+
+# Plain-language reason templates. {placeholders} are filled by core/scoring.py.
+reasons:
+  landlord_rate: "this landlord resolved {rate} of past cases without a judgment (court-wide average {avg})"
+  landlord_rate_new: "this landlord has few past cases here, so the court-wide average ({avg}) is used"
+  prior_filings_12m: "{n} other eviction filing(s) against this tenant or address in the past 12 months"
+  prior_filings_none: "no other eviction filings against this tenant or address in the past 12 months"
+  plaintiff_attorney_yes: "the landlord has an attorney"
+  plaintiff_attorney_no: "the landlord does not have an attorney"
+  defendant_count: "{n} tenant(s) named on the case"
+  amount_unknown: "the claim lists the $10,000 small-claims cap, so the amount actually owed is unknown"
+  amount_known: "the amount claimed (${amount}) is {cmp} than typical"
+  court: "cases in court {court} resolve {cmp} often than average"
+  days_to_hearing: "{n} days between filing and the first hearing ({cmp} time than usual to work things out)"
+  overlap_overlap: "the tenant's offer covers the landlord's minimum within the landlord's plan length"
+  overlap_bridgeable: "the gap between what the tenant can pay and the landlord's minimum is small or bridgeable"
+  overlap_wide: "there is a wide gap between what the tenant can pay and the landlord's minimum"
+  goals_aligned: "both sides want the same outcome ({goal})"
+  goals_partial: "the two sides' goals partly line up"
+  goals_conflict: "the tenant wants to stay but the landlord wants possession"
+  mediation_both_willing: "both sides are willing to talk with a mediator"
+  mediation_one_willing: "one side is willing to talk with a mediator"
+  mediation_one_refuses: "one side does not want to talk with a mediator"
+  assistance_pending: "the tenant has rental assistance applied for or pending"
+  fee_waiver_offered: "the landlord is willing to waive late or attorney fees"
+  moveout_extension_matches_tenant: "the landlord will extend the move-out date and the tenant would move with more time"

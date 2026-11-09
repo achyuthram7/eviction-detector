@@ -1,0 +1,23 @@
+[project]
+name = "eviction-settlement-detector"
+version = "0.1.0"
+description = "Prototype: flags Indiana EV cases likely to settle before the first hearing. Synthetic data only. Not legal advice."
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["app/static", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "W"]
+# B008: FastAPI's Depends()/Form() in argument defaults is the documented pattern.
+ignore = ["B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "core", "synth", "eval"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"

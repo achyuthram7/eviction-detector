@@ -1,0 +1,26 @@
+# PLACEHOLDER — DRAFT TEXT ONLY.
+# The team must confirm every Odyssey entry and the order wording with the court before use
+# (PLAN.md Q B1). Nothing here is an official form or legal advice. The tool never sends this
+# anywhere: staff copy it and make the official entries in Odyssey themselves.
+
+notice: "DRAFT — placeholder text. Confirm every item and the order wording with the court."
+
+odyssey_checklist:
+  - "Record that both parties agreed to diversion (event code: TBD — confirm with court)."
+  - "Enter the order staying the case for {stay_days} days, starting {stay_start}."
+  - "Schedule the 30-day status check for {check_30}."
+  - "Schedule the 60-day status check for {check_60}."
+  - "Confirm the case is marked confidential as required for diversion."
+  - "Note the end of the stay: {stay_end}."
+  - "Give both parties a copy of the agreement and the status-check dates."
+
+draft_order: |
+  DRAFT — PLACEHOLDER WORDING, NOT AN OFFICIAL FORM. CONFIRM WITH THE COURT.
+
+  Case number: {case_number}
+  Court: {court_id}
+
+  The parties have both agreed to participate in eviction diversion.
+  The case is stayed for {stay_days} days, from {stay_start} to {stay_end}.
+  Status checks are set for {check_30} (30 days) and {check_60} (60 days).
+  [Payment plan / move-out terms, if any: ______________________]

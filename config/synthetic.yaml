@@ -1,0 +1,90 @@
+# Synthetic data generator settings (make seed).
+# EVERYTHING produced from this file is fake. Values marked PLACEHOLDER are stand-ins the team
+# will replace, e.g. with Indiana's published "Methods of Disposition" shares for EV cases.
+
+seed: 14
+anchor_date: today          # "today" (honours APP_TODAY) or YYYY-MM-DD
+snapshot_lag_days: 2        # seeded DB = export as of anchor-2; day1.csv = anchor-1; day2.csv = anchor
+history_years: 3
+history_cases: 6000         # closed historical cases (approximate)
+live_cases: 300             # open docket at the seeded snapshot (approximate)
+recent_window_days: 75
+
+# Synthetic court IDs. Indiana has no counties numbered 97-99, so these can never match a real
+# case number.
+courts:
+  - {id: 97K01, weight: 0.35, effect: 0.15,  hearing_offset_days: 0}
+  - {id: 97K02, weight: 0.25, effect: -0.10, hearing_offset_days: 3}
+  - {id: 98K01, weight: 0.25, effect: 0.00,  hearing_offset_days: -2}
+  - {id: 99K01, weight: 0.15, effect: -0.25, hearing_offset_days: 6}
+
+plaintiffs:
+  count: 400
+  zipf_exponent: 1.1        # a few repeat filers file most cases
+  large_filer_top_share: 0.10
+  types:                    # landlord types (hidden; ground truth only)
+    payment_seeker:    {share: 0.30, effect: 0.8}    # usually dismisses after payment
+    possession_seeker: {share: 0.25, effect: -0.9}   # usually seeks possession
+    mixed:             {share: 0.45, effect: 0.0}
+  large_filer_type_shares: {payment_seeker: 0.5, possession_seeker: 0.2, mixed: 0.3}
+  landlord_effect_sd: 0.3
+  attorney_prob_large: 0.9
+  attorney_prob_small: 0.35
+
+defendants:
+  count_probs: {1: 0.70, 2: 0.25, 3: 0.05}
+  repeat_prob: 0.15         # filing targets a household this landlord filed against in the past year
+  phone_prob_first: 0.7
+  phone_prob_other: 0.4
+
+amounts:
+  owed_median: 1800
+  owed_sigma: 0.6
+  owed_min: 200
+  owed_max: 8500
+  fee_markup_max: 0.15
+  placeholder_cap_share: 0.25   # PLACEHOLDER share of filings that list the $10,000 cap
+  claim_cap: 10000
+
+# Latent logit effects (synthetic signal).
+effects:
+  attorney: 0.2
+  per_extra_defendant: 0.15
+  log_amount: -0.5             # higher amount owed -> less likely to resolve
+  days_to_hearing_per_day: 0.02
+  prior_filing: 0.15           # per prior filing (capped at 3); serial filing used as rent collection
+  noise_sd: 0.5
+
+# PLACEHOLDER outcome mix — replace with Indiana "Methods of Disposition" shares for EV cases.
+outcome_mix:
+  default_judgment: 0.42
+  judgment_after_trial: 0.08
+  dismissed_on_payment: 0.18
+  dismissed_other: 0.12
+  agreed_pay_and_stay: 0.12
+  agreed_move_out: 0.08
+diversion_share_of_resolved: 0.12     # PLACEHOLDER
+diversion_share_of_unresolved: 0.03   # PLACEHOLDER (diversion tried, then failed)
+dismissed_before_hearing_share: 0.6   # PLACEHOLDER share of dismissals before the first hearing
+continuance_prob: 0.15
+writ_after_possession_prob: 0.35
+sealed_midway_prob: 0.004
+label_noise: 0.05                     # recorded outcome flipped vs. the latent "true" outcome
+
+timing:
+  service_days: [3, 10]
+  hearing_after_service_days: 20
+  continuance_days: [14, 28]
+
+# Intake answers for the live docket.
+intake:
+  invited_share: 0.8
+  tenant_response_rate: 0.35
+  extra_tenant_response_rate: 0.5     # relative to the first tenant
+  landlord_response_rate: 0.50
+  policy_share_large_filers: 0.30
+  spanish_share: 0.12
+  tenant_seconds_median: 210
+  landlord_seconds_median: 150
+  seconds_sigma: 0.45
+  call_log_share: 0.4
