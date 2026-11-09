@@ -135,3 +135,162 @@ def test_case_sealed_in_feed_hidden_from_clerk_and_judge(session):
     for role in (CLERK, JUDGE):
         assert [r.case.case_number for r in call_list(session, role)] == ["97K01-2603-EV-000002"]
     assert len(call_list(session, FACILITATOR)) == 2
+
+
+# --- Party links and intake scenarios (Milestone 2) ------------------------------------------
+
+from core.constants import LANDLORD, TENANT  # noqa: E402
+from core.models import (  # noqa: E402
+    FallbackSubmission,
+    LandlordPolicy,
+    LandlordResponse,
+    Party,
+    Plaintiff,
+    TenantResponse,
+)
+from tests.factories import PLAINTIFF, landlord_form, tenant_form  # noqa: E402
+
+
+def _party(session, role, index=None, case_number="97K01-2603-EV-000001") -> Party:
+    session.expire_all()
+    case = session.scalar(select(Case).where(Case.case_number == case_number))
+    return next(
+        p for p in case.parties if p.role == role and (index is None or p.party_index == index)
+    )
+
+
+def _open_and_submit(client, token, form):
+    page = client.get(f"/r/{token}")
+    assert page.status_code == 200
+    timing_id = page.text.split('name="timing_id" value="')[1].split('"')[0]
+    return client.post(f"/r/{token}", data={**form, "timing_id": timing_id}, follow_redirects=False)
+
+
+def test_tenant_opens_token_link_and_submits_answer_attached_to_correct_case_and_party(
+    session, client
+):
+    import_rows(session, [row(1), row(2)])
+    tenant = _party(session, TENANT)
+    resp = _open_and_submit(client, tenant.token, tenant_form(pay_30d="425"))
+    assert resp.status_code == 303 and resp.headers["location"].startswith(f"/r/{tenant.token}")
+    session.expire_all()
+    (answer,) = session.scalars(select(TenantResponse)).all()
+    assert answer.party_id == tenant.id
+    assert answer.case_id == tenant.case_id
+    assert answer.pay_30d == 425.0 and answer.source == "token" and answer.verified
+    assert answer.started_at is not None and answer.submitted_at >= answer.started_at
+
+
+def test_valid_case_number_entered_by_non_party_no_details_shown_sent_to_review_queue(
+    session, client
+):
+    import_rows(session, [row(1, amount_claimed="2345.67", hearing_datetime="2026-03-30T09:00")])
+    page = client.post(
+        "/find",
+        data={
+            **tenant_form(),
+            "role": "tenant",
+            "case_number": "97K01-2603-EV-000001",
+            "last_name": "Stranger",
+        },
+    )
+    assert page.status_code == 200
+    for secret in ("Ann Tester1", "2345", "2026-03-30", "Testing Rentals", "Test St"):
+        assert secret not in page.text
+    sub = session.scalar(select(FallbackSubmission))
+    assert sub.status == "review" and sub.matched_party_id is None
+    assert session.scalars(select(TenantResponse)).all() == []
+    # A non-existent case number produces exactly the same page.
+    other = client.post(
+        "/find",
+        data={
+            **tenant_form(),
+            "role": "tenant",
+            "case_number": "99K01-2603-EV-999999",
+            "last_name": "Stranger",
+        },
+    )
+    assert other.text.split("<main")[1] == page.text.split("<main")[1]
+
+
+def test_same_token_used_twice_update_not_duplicate(session, client):
+    import_rows(session, [row(1)])
+    tenant = _party(session, TENANT)
+    _open_and_submit(client, tenant.token, tenant_form(pay_30d="100"))
+    _open_and_submit(
+        client, tenant.token, tenant_form(pay_30d="300", wants="move", move_time_days="30")
+    )
+    session.expire_all()
+    answers = session.scalars(select(TenantResponse)).all()
+    assert len(answers) == 1
+    assert answers[0].pay_30d == 300.0 and answers[0].wants == "move"
+    assert answers[0].revision == 2
+
+
+def test_two_tenants_on_one_case_answer_differently_both_records_kept(session, client):
+    import_rows(session, [row(1, defendant_count=2, defendant_names="Ann One; Bo Two")])
+    first, second = _party(session, TENANT, 1), _party(session, TENANT, 2)
+    _open_and_submit(client, first.token, tenant_form(wants="stay", pay_30d="500"))
+    _open_and_submit(client, second.token, tenant_form(wants="move", move_time_days="45"))
+    session.expire_all()
+    answers = {a.party_id: a for a in session.scalars(select(TenantResponse))}
+    assert set(answers) == {first.id, second.id}
+    assert {a.case_id for a in answers.values()} == {first.case_id}
+    assert answers[first.id].wants == "stay" and answers[second.id].wants == "move"
+
+
+def test_landlord_standing_policy_and_new_filing_policy_applied_automatically(session, client):
+    import_rows(session, [row(1)])
+    plaintiff = session.get(Plaintiff, PLAINTIFF)
+    from core.parties import ensure_portfolio_token
+
+    token = ensure_portfolio_token(session, plaintiff)
+    session.commit()
+    page = client.get(f"/policy/{token}")
+    timing_id = page.text.split('name="timing_id" value="')[1].split('"')[0]
+    resp = client.post(
+        f"/policy/{token}",
+        data={
+            "min_to_dismiss_pct": "90",
+            "accepts_plan": "yes",
+            "max_plan_months": "5",
+            "goal": "rent",
+            "willing_mediator": "yes",
+            "timing_id": timing_id,
+        },
+    )
+    assert resp.status_code == 200
+    # A new filing from the same plaintiff arrives in the next import.
+    import_rows(session, [row(1), row(2)])
+    session.expire_all()
+    assert session.scalar(select(LandlordPolicy)).max_plan_months == 5
+    new_case = session.scalar(select(Case).where(Case.case_number == "97K01-2603-EV-000002"))
+    applied = session.scalar(
+        select(LandlordResponse).where(LandlordResponse.case_id == new_case.id)
+    )
+    assert applied is not None and applied.source == "policy"
+    assert applied.min_to_dismiss_pct == 90.0 and applied.max_plan_months == 5
+    assert new_case.working_status == "Partial response"
+
+
+def test_tenant_views_own_intake_never_sees_landlord_answers_and_vice_versa(session, client):
+    import_rows(session, [row(1)])
+    tenant, landlord = _party(session, TENANT), _party(session, LANDLORD)
+    _open_and_submit(client, tenant.token, tenant_form(pay_30d="777", pay_monthly="333"))
+    _open_and_submit(
+        client, landlord.token, landlord_form(min_to_dismiss="4321", amount_owed_now="5678")
+    )
+    tenant_pages = [
+        client.get(f"/r/{tenant.token}").text,
+        client.get(f"/r/{tenant.token}/done").text,
+    ]
+    landlord_pages = [
+        client.get(f"/r/{landlord.token}").text,
+        client.get(f"/r/{landlord.token}/done").text,
+    ]
+    for text in tenant_pages:
+        assert "4,321" not in text and "4321" not in text and "5,678" not in text
+    assert "777" in tenant_pages[1]
+    for text in landlord_pages:
+        assert "777" not in text and "333" not in text
+    assert "4,321" in landlord_pages[1]

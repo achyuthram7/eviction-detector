@@ -1,0 +1,31 @@
+{% import "public/_macros.html" as m %}
+<section class="form-section">
+  <h2>{{ t('section_money') }}</h2>
+  {% if not policy_mode %}
+  {{ m.money('amount_owed_now', t('q_amount_owed'), values, errors, t) }}
+  {{ m.money('fees_included', t('q_fees_included') ~ ' (' ~ t('optional') ~ ')', values, errors, t) }}
+  {{ m.money('min_to_dismiss', t('q_min_dismiss'), values, errors, t) }}
+  {% else %}
+  {{ m.number('min_to_dismiss_pct', t('q_min_dismiss_pct'), values, errors, t, min=1, max=100) }}
+  {% endif %}
+  {{ m.yesno('accepts_plan', t('q_accepts_plan'), values, t) }}
+  <div data-show-when="accepts_plan=yes">
+    {{ m.number('max_plan_months', t('q_max_months'), values, errors, t, min=1, max=24) }}
+  </div>
+  <fieldset class="field">
+    <legend>{{ t('q_waive') }}</legend>
+    <div class="choices">
+      {{ m.check('waive_late_fees', t('opt_waive_late'), values) }}
+      {{ m.check('waive_attorney_fees', t('opt_waive_atty'), values) }}
+    </div>
+  </fieldset>
+</section>
+<section class="form-section">
+  <h2>{{ t('section_home') }}</h2>
+  {{ m.yesno('extend_moveout', t('q_extend'), values, t) }}
+  <div data-show-when="extend_moveout=yes">
+    {{ m.number('extend_moveout_days', t('q_extend_days'), values, errors, t, min=1, max=180) }}
+  </div>
+  {{ m.radios('goal', t('q_goal'), [('rent', t('opt_rent')), ('possession', t('opt_possession')), ('both', t('opt_both'))], values) }}
+  {{ m.radios('willing_mediator', t('q_ll_mediator'), [('yes', t('yes')), ('no', t('no')), ('unsure', t('unsure'))], values) }}
+</section>

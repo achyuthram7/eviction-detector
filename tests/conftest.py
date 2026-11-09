@@ -33,3 +33,13 @@ def session():
     finally:
         s.rollback()
         s.close()
+
+
+@pytest.fixture
+def client():
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    with TestClient(create_app()) as c:
+        yield c

@@ -49,3 +49,38 @@ def import_rows(session, rows: list[dict], filename: str = "test.csv"):
     run = import_csv(session, csv_bytes(rows), filename=filename)
     session.commit()
     return run
+
+
+def tenant_form(**overrides) -> dict:
+    form = {
+        "believed_owed": "1200",
+        "pay_30d": "400",
+        "pay_monthly": "250",
+        "assistance_status": "pending",
+        "assistance_amount": "",
+        "wants": "stay",
+        "willing_mediator": "yes",
+        "legal_aid": "no",
+        "consent_text": "on",
+        "preferred_language": "English",
+        "lang": "en",
+    }
+    form.update(overrides)
+    return form
+
+
+def landlord_form(**overrides) -> dict:
+    form = {
+        "amount_owed_now": "1500",
+        "fees_included": "150",
+        "accepts_plan": "yes",
+        "max_plan_months": "4",
+        "min_to_dismiss": "1300",
+        "waive_late_fees": "on",
+        "extend_moveout": "no",
+        "goal": "rent",
+        "willing_mediator": "yes",
+        "lang": "en",
+    }
+    form.update(overrides)
+    return form

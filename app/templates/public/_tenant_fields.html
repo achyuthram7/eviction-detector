@@ -1,0 +1,49 @@
+{% import "public/_macros.html" as m %}
+<section class="form-section">
+  <h2>{{ t('section_money') }}</h2>
+  {{ m.money('believed_owed', t('q_believed_owed'), values, errors, t) }}
+  {{ m.money('pay_30d', t('q_pay_30d'), values, errors, t) }}
+  {{ m.money('pay_monthly', t('q_pay_monthly'), values, errors, t) }}
+  {{ m.radios('assistance_status', t('q_assistance'), [('none', t('opt_none')), ('applied', t('opt_applied')), ('pending', t('opt_pending')), ('approved', t('opt_approved'))], values) }}
+  {{ m.money('assistance_amount', t('q_assistance_amount') ~ ' (' ~ t('optional') ~ ')', values, errors, t) }}
+</section>
+<section class="form-section">
+  <h2>{{ t('section_home') }}</h2>
+  {{ m.radios('wants', t('q_wants'), [('stay', t('opt_stay')), ('move', t('opt_move'))], values) }}
+  <div class="field" data-show-when="wants=move">
+    <label for="f-move_time_days">{{ t('q_move_time') }}</label>
+    <select id="f-move_time_days" name="move_time_days">
+      <option value=""></option>
+      {% for n in [14, 30, 45, 60, 90] %}
+      <option value="{{ n }}"{% if values.get('move_time_days') == n %} selected{% endif %}>{{ t('days_n', n=n) }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</section>
+<section class="form-section">
+  <h2>{{ t('section_problems') }}</h2>
+  <fieldset class="field">
+    <legend>{{ t('q_problems') }}</legend>
+    <div class="choices">
+      {{ m.check('repair_issues', t('opt_repairs'), values) }}
+      {{ m.check('retaliation_concern', t('opt_retaliation'), values) }}
+      {{ m.check('notice_dispute', t('opt_notice'), values) }}
+      {{ m.check('payment_dispute', t('opt_payment_dispute'), values) }}
+    </div>
+  </fieldset>
+  {{ m.text('repair_details', t('q_repair_details') ~ ' (' ~ t('optional') ~ ')', values, multiline=True, maxlength=1000) }}
+  {{ m.yesno('legal_aid', t('q_legal_aid'), values, t) }}
+  {{ m.radios('willing_mediator', t('q_mediator'), [('yes', t('yes')), ('no', t('no')), ('unsure', t('unsure'))], values) }}
+</section>
+<section class="form-section">
+  <h2>{{ t('section_contact') }}</h2>
+  <fieldset class="field">
+    <legend>{{ t('q_consent') }}</legend>
+    <div class="choices">
+      {{ m.check('consent_text', t('opt_texts'), values) }}
+      {{ m.check('consent_call', t('opt_calls'), values) }}
+    </div>
+  </fieldset>
+  {{ m.text('contact_phone', t('q_contact_phone') ~ ' (' ~ t('optional') ~ ')', values, maxlength=40) }}
+  {{ m.radios('preferred_language', t('q_language'), [('English', t('opt_english')), ('Spanish', t('opt_spanish')), ('Other', t('opt_other'))], values) }}
+</section>

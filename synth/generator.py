@@ -285,20 +285,37 @@ def _make_plaintiffs(cfg: dict, rng: np.random.Generator, fake: Faker) -> tuple[
     return plaintiffs, weights
 
 
-def _new_household(hid: int, cfg: dict, rng: np.random.Generator, fake: Faker) -> Household:
+class Pools:
+    """Fake names/streets drawn once from Faker (its weighted sampling is slow per call)."""
+
+    def __init__(self, fake: Faker, n: int = 1500):
+        self.first = [fake.first_name() for _ in range(n)]
+        self.last = [fake.last_name() for _ in range(n)]
+        self.numbers = [fake.building_number() for _ in range(n)]
+        self.streets = [fake.street_name() for _ in range(n)]
+        self.cities = [fake.city() for _ in range(80)]
+        self.zips = [fake.zipcode_in_state("IN") for _ in range(150)]
+
+    @staticmethod
+    def pick(rng: np.random.Generator, items: list[str]) -> str:
+        return items[int(rng.integers(len(items)))]
+
+
+def _new_household(hid: int, cfg: dict, rng: np.random.Generator, pools: Pools) -> Household:
     dc = cfg["defendants"]
     counts = [int(k) for k in dc["count_probs"]]
     probs = np.array([dc["count_probs"][k] for k in dc["count_probs"]], dtype=float)
     k = counts[int(rng.choice(len(counts), p=probs / probs.sum()))]
-    first_last = fake.last_name()
-    names = [f"{fake.first_name()} {first_last}"]
+    pick = Pools.pick
+    first_last = pick(rng, pools.last)
+    names = [f"{pick(rng, pools.first)} {first_last}"]
     for _ in range(k - 1):
-        last = first_last if rng.random() < 0.5 else fake.last_name()
-        names.append(f"{fake.first_name()} {last}")
+        last = first_last if rng.random() < 0.5 else pick(rng, pools.last)
+        names.append(f"{pick(rng, pools.first)} {last}")
     unit = f" Apt {int(rng.integers(1, 40))}" if rng.random() < 0.55 else ""
     address = (
-        f"{fake.building_number()} {fake.street_name()}{unit}, {fake.city()}, IN "
-        f"{fake.zipcode_in_state('IN')}"
+        f"{pick(rng, pools.numbers)} {pick(rng, pools.streets)}{unit}, "
+        f"{pick(rng, pools.cities)}, IN {pick(rng, pools.zips)}"
     )
     phones: list[str | None] = []
     for i in range(k):
@@ -406,6 +423,7 @@ def _generate(cfg: dict, anchor: date, n_recent: int) -> World:
     recent_start = snapshot - timedelta(days=int(cfg["recent_window_days"]))
 
     plaintiffs, pl_weights = _make_plaintiffs(cfg, rng, fake)
+    pools = Pools(fake)
     courts = cfg["courts"]
     court_w = np.array([c["weight"] for c in courts], dtype=float)
     court_w /= court_w.sum()
@@ -448,7 +466,7 @@ def _generate(cfg: dict, anchor: date, n_recent: int) -> World:
             hid = candidates[int(rng.integers(len(candidates)))]
         else:
             hid = len(households)
-            households.append(_new_household(hid, cfg, rng, fake))
+            households.append(_new_household(hid, cfg, rng, pools))
         hh = households[hid]
         prior = sum(1 for d in hh_filings[hid] if 0 < (f - d).days <= 365)
         hh_filings[hid].append(f)

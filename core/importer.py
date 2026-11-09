@@ -283,7 +283,14 @@ def import_csv(
         chunk = [n for n in numbers[i : i + 500] if n]
         for case in session.scalars(select(Case).where(Case.case_number.in_(chunk))):
             existing[case.case_number] = case
+    plaintiff_ids = {(r.get("plaintiff_id") or "").strip() for r in rows} - {""}
     plaintiffs: dict[str, Plaintiff] = {}
+    ids = list(plaintiff_ids)
+    for i in range(0, len(ids), 500):
+        for p in session.scalars(
+            select(Plaintiff).where(Plaintiff.plaintiff_id.in_(ids[i : i + 500]))
+        ):
+            plaintiffs[p.plaintiff_id] = p
 
     seen: dict[str, int] = {}
     new_cases: list[Case] = []
@@ -312,7 +319,7 @@ def import_csv(
             export_dates.add(record["export_date"])
 
         pid = record["plaintiff_id"]
-        plaintiff = plaintiffs.get(pid) or session.get(Plaintiff, pid)
+        plaintiff = plaintiffs.get(pid)
         if plaintiff is None:
             plaintiff = Plaintiff(
                 plaintiff_id=pid, label=record["plaintiff_name"] or f"Landlord {pid[:6].upper()}"

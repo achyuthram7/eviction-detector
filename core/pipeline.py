@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from core.constants import TERMINAL_EVENTS
+from core.intake import apply_policy_to_case
 from core.models import Case, ImportRun
 from core.parties import ensure_parties
 from core.reconcile import check_unconfirmed_diversions, reconcile_case
@@ -33,7 +34,7 @@ def after_import(session: Session, run: ImportRun, changed: dict) -> None:
             old = changed[case.id]
             if case.latest_event not in TERMINAL_EVENTS:
                 ensure_parties(session, case)
-            apply_policy(session, case)
+            apply_policy_to_case(session, case)
             refresh_status(session, case, source="feed", is_new=old.is_new, import_id=run.id)
             if not old.is_new:
                 flags += len(
@@ -56,13 +57,14 @@ def after_import(session: Session, run: ImportRun, changed: dict) -> None:
     rescore(session, ids)
 
 
-def apply_policy(session: Session, case: Case) -> None:
-    """Apply the plaintiff's standing policy to an open case (Milestone 2)."""
-    try:
-        from core.intake import apply_policy_to_case
-    except ImportError:  # pragma: no cover - before Milestone 2
-        return
-    apply_policy_to_case(session, case)
+def after_intake(
+    session: Session, cases: list[Case], *, source: str = "system", user_id: int | None = None
+) -> None:
+    """After answers or a policy change: refresh working status, then rescore."""
+    for case in cases:
+        refresh_status(session, case, source=source, user_id=user_id)
+    session.flush()
+    rescore(session, [c.id for c in cases])
 
 
 def rescore(session: Session, case_ids: list[int]) -> None:

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ t('done_title') }}{% endblock %}
+{% block container_class %} narrow{% endblock %}
+{% block content %}
+<div class="lang-toggle"><a href="{{ toggle_url }}">{{ t('lang_toggle') }}</a></div>
+<h1>{{ t('done_title') }}</h1>
+<div class="disclosure"><strong>{{ t('disclosure') }}</strong></div>
+<p>{{ t('done_body') }}</p>
+{% if extra_note %}<p class="muted">{{ extra_note }}</p>{% endif %}
+<h2>{{ t('your_answers') }}</h2>
+{# Only this party's own answers are ever passed to this page. #}
+<dl class="answers">
+  {% for label, value in rows %}
+  <div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>
+  {% endfor %}
+</dl>
+{% if resp and resp.revision and resp.revision > 1 %}<p class="muted">{{ t('revision_note', n=resp.revision - 1) }}</p>{% endif %}
+<p><a class="btn" href="{{ edit_url }}">{{ t('edit_again') }}</a></p>
+{% endblock %}

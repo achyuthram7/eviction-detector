@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ t('find_title') }}{% endblock %}
+{% block container_class %} narrow{% endblock %}
+{% block content %}
+{# This page never shows case details, whatever is entered. #}
+{% with heading=t('find_title'), intro=t('find_intro') %}{% include "public/_intake_head.html" %}{% endwith %}
+<p class="role-switch">{{ t('q_role') }}:
+  {% if role == 'tenant' %}<strong>{{ t('role_tenant') }}</strong> · <a href="/find?role=landlord&lang={{ lang }}">{{ t('role_landlord') }}</a>
+  {% else %}<a href="/find?role=tenant&lang={{ lang }}">{{ t('role_tenant') }}</a> · <strong>{{ t('role_landlord') }}</strong>{% endif %}
+</p>
+<form method="post" action="/find" class="intake" novalidate>
+  <input type="hidden" name="timing_id" value="{{ timing_id or '' }}">
+  <input type="hidden" name="lang" value="{{ lang }}">
+  <input type="hidden" name="role" value="{{ role }}">
+  <section class="form-section">
+    <div class="field">
+      <label for="f-case_number">{{ t('q_case_number') }}</label>
+      <input id="f-case_number" name="case_number" autocomplete="off" maxlength="40" value="{{ entered.get('case_number', '') }}" placeholder="97K01-2611-EV-000123">
+    </div>
+    <div class="field">
+      <label for="f-last_name">{{ t('q_last_name') }}</label>
+      <input id="f-last_name" name="last_name" autocomplete="family-name" maxlength="80" value="{{ entered.get('last_name', '') }}">
+    </div>
+  </section>
+  {% if role == 'tenant' %}
+    {% include "public/_tenant_fields.html" %}
+  {% else %}
+    {% with policy_mode=False %}{% include "public/_landlord_fields.html" %}{% endwith %}
+  {% endif %}
+  <button type="submit" class="btn primary">{{ t('submit') }}</button>
+</form>
+{% endblock %}

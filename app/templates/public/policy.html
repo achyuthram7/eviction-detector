@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}{{ t('title_policy') }}{% endblock %}
+{% block container_class %} narrow{% endblock %}
+{% block content %}
+{% with heading=t('title_policy'), intro=t('intro_policy') %}{% include "public/_intake_head.html" %}{% endwith %}
+<p class="case-ref">{{ plaintiff.label }}</p>
+<form method="post" action="{{ action }}" class="intake" novalidate>
+  <input type="hidden" name="timing_id" value="{{ timing_id or '' }}">
+  <input type="hidden" name="lang" value="{{ lang }}">
+  {% with policy_mode=True %}{% include "public/_landlord_fields.html" %}{% endwith %}
+  <p class="muted">{{ t('policy_applies') }}</p>
+  <button type="submit" class="btn primary">{{ t('save_update') if existing else t('submit') }}</button>
+</form>
+{% endblock %}

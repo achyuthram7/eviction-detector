@@ -1,0 +1,6 @@
+# Keep LF endings for files that run inside the Linux container.
+* text=auto
+*.sh text eol=lf
+Makefile text eol=lf
+Dockerfile text eol=lf
+*.png binary

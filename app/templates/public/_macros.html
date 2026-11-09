@@ -1,0 +1,59 @@
+{# Form-field macros for the party intakes. Values come in `v`, error keys in `e`. #}
+
+{% macro money(name, label, v, e, t) -%}
+<div class="field{% if e.get(name) %} has-error{% endif %}">
+  <label for="f-{{ name }}">{{ label }}</label>
+  <div class="money-input">
+    <span aria-hidden="true">$</span>
+    <input id="f-{{ name }}" name="{{ name }}" inputmode="decimal" autocomplete="off"
+           placeholder="{{ t('dollars_hint') }}"
+           value="{% if v.get(name) is not none %}{{ ('%.2f' | format(v.get(name))).replace('.00', '') }}{% endif %}">
+  </div>
+  {% if e.get(name) %}<p class="error">{{ t(e.get(name)) }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro number(name, label, v, e, t, min=1, max=365) -%}
+<div class="field{% if e.get(name) %} has-error{% endif %}">
+  <label for="f-{{ name }}">{{ label }}</label>
+  <input id="f-{{ name }}" name="{{ name }}" type="number" inputmode="numeric" min="{{ min }}" max="{{ max }}"
+         value="{{ v.get(name) if v.get(name) is not none else '' }}">
+  {% if e.get(name) %}<p class="error">{{ t(e.get(name)) }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro radios(name, label, options, v) -%}
+<fieldset class="field">
+  <legend>{{ label }}</legend>
+  <div class="choices">
+  {% for value, text in options %}
+    <label class="choice"><input type="radio" name="{{ name }}" value="{{ value }}"{% if v.get(name) == value %} checked{% endif %}> {{ text }}</label>
+  {% endfor %}
+  </div>
+</fieldset>
+{%- endmacro %}
+
+{% macro yesno(name, label, v, t) -%}
+<fieldset class="field">
+  <legend>{{ label }}</legend>
+  <div class="choices">
+    <label class="choice"><input type="radio" name="{{ name }}" value="yes"{% if v.get(name) is sameas true %} checked{% endif %}> {{ t('yes') }}</label>
+    <label class="choice"><input type="radio" name="{{ name }}" value="no"{% if v.get(name) is sameas false %} checked{% endif %}> {{ t('no') }}</label>
+  </div>
+</fieldset>
+{%- endmacro %}
+
+{% macro check(name, label, v) -%}
+<label class="choice"><input type="checkbox" name="{{ name }}" value="on"{% if v.get(name) %} checked{% endif %}> {{ label }}</label>
+{%- endmacro %}
+
+{% macro text(name, label, v, multiline=False, maxlength=200) -%}
+<div class="field">
+  <label for="f-{{ name }}">{{ label }}</label>
+  {% if multiline %}
+  <textarea id="f-{{ name }}" name="{{ name }}" rows="3" maxlength="{{ maxlength }}">{{ v.get(name) or '' }}</textarea>
+  {% else %}
+  <input id="f-{{ name }}" name="{{ name }}" maxlength="{{ maxlength }}" value="{{ v.get(name) or '' }}">
+  {% endif %}
+</div>
+{%- endmacro %}

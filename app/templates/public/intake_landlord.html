@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ t('title_landlord') }}{% endblock %}
+{% block container_class %} narrow{% endblock %}
+{% block content %}
+{% with heading=t('title_landlord'), intro=t('intro_landlord') %}{% include "public/_intake_head.html" %}{% endwith %}
+<p class="case-ref">{{ t('case_label') }} {{ case.case_number }}{% if case.hearing_datetime %} · {{ t('hearing_label') }}: {{ case.hearing_datetime.strftime('%Y-%m-%d %H:%M') }}{% endif %}</p>
+<form method="post" action="{{ action }}" class="intake" novalidate>
+  <input type="hidden" name="timing_id" value="{{ timing_id or '' }}">
+  <input type="hidden" name="lang" value="{{ lang }}">
+  {% with policy_mode=False %}{% include "public/_landlord_fields.html" %}{% endwith %}
+  <button type="submit" class="btn primary">{{ t('save_update') if existing else t('submit') }}</button>
+</form>
+{% endblock %}

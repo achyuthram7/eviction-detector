@@ -1,0 +1,9 @@
+{# Shared top of every intake form. The disclosure always comes before the first question. #}
+<div class="lang-toggle"><a href="{{ toggle_url }}" hreflang="{{ t('lang_toggle_code') }}">{{ t('lang_toggle') }}</a></div>
+<h1>{{ heading }}</h1>
+<div class="disclosure" role="alert" id="disclosure">
+  <strong>{{ t('disclosure') }}</strong>
+</div>
+<p>{{ intro }}</p>
+<p class="muted">{{ t('voluntary_note') }} {{ t('skip_hint') }}</p>
+{% if errors %}<p class="error-summary" role="alert">{{ t('form_errors') }}</p>{% endif %}
