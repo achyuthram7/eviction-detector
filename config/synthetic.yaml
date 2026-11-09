@@ -13,21 +13,21 @@ recent_window_days: 75
 # Synthetic court IDs. Indiana has no counties numbered 97-99, so these can never match a real
 # case number.
 courts:
-  - {id: 97K01, weight: 0.35, effect: 0.15,  hearing_offset_days: 0}
-  - {id: 97K02, weight: 0.25, effect: -0.10, hearing_offset_days: 3}
+  - {id: 97K01, weight: 0.35, effect: 0.25,  hearing_offset_days: 0}
+  - {id: 97K02, weight: 0.25, effect: -0.15, hearing_offset_days: 3}
   - {id: 98K01, weight: 0.25, effect: 0.00,  hearing_offset_days: -2}
-  - {id: 99K01, weight: 0.15, effect: -0.25, hearing_offset_days: 6}
+  - {id: 99K01, weight: 0.15, effect: -0.35, hearing_offset_days: 6}
 
 plaintiffs:
   count: 400
   zipf_exponent: 1.1        # a few repeat filers file most cases
   large_filer_top_share: 0.10
   types:                    # landlord types (hidden; ground truth only)
-    payment_seeker:    {share: 0.30, effect: 0.8}    # usually dismisses after payment
-    possession_seeker: {share: 0.25, effect: -0.9}   # usually seeks possession
+    payment_seeker:    {share: 0.30, effect: 1.8}    # usually dismisses after payment
+    possession_seeker: {share: 0.25, effect: -2.0}   # usually seeks possession
     mixed:             {share: 0.45, effect: 0.0}
   large_filer_type_shares: {payment_seeker: 0.5, possession_seeker: 0.2, mixed: 0.3}
-  landlord_effect_sd: 0.3
+  landlord_effect_sd: 0.6
   attorney_prob_large: 0.9
   attorney_prob_small: 0.35
 
@@ -49,10 +49,10 @@ amounts:
 # Latent logit effects (synthetic signal).
 effects:
   attorney: 0.2
-  per_extra_defendant: 0.15
-  log_amount: -0.5             # higher amount owed -> less likely to resolve
-  days_to_hearing_per_day: 0.02
-  prior_filing: 0.15           # per prior filing (capped at 3); serial filing used as rent collection
+  per_extra_defendant: 0.2
+  log_amount: -1.0             # higher amount owed -> less likely to resolve
+  days_to_hearing_per_day: 0.03
+  prior_filing: 0.2            # per prior filing (capped at 3); serial filing used as rent collection
   noise_sd: 0.5
 
 # PLACEHOLDER outcome mix — replace with Indiana "Methods of Disposition" shares for EV cases.

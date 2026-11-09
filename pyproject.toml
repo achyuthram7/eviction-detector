@@ -23,6 +23,5 @@ pythonpath = ["."]
 addopts = "-q"
 filterwarnings = [
     # starlette 1.x nudges toward httpx2; the test client still works with httpx.
-    "ignore::DeprecationWarning:fastapi.testclient",
-    "ignore::DeprecationWarning:starlette.testclient",
+    "ignore:Using .httpx. with .starlette.testclient. is deprecated",
 ]

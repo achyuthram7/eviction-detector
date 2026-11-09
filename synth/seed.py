@@ -76,6 +76,7 @@ def run_seed(verbose: bool = True) -> World:
     world = build_world(cfg, anchor)
     files = write_world_files(world)
 
+    settings.model_path.unlink(missing_ok=True)  # never score with a model from an old seed
     init_db(drop=True)
     with session_scope() as session:
         create_demo_users(session)
@@ -99,18 +100,20 @@ def run_seed(verbose: bool = True) -> World:
 
 
 def apply_seed_intakes() -> None:
-    """Load seeded intake answers, policies, fallbacks and call logs (Milestone 2)."""
-    try:
-        from synth.seed_intake import apply_seed_payload
-    except ImportError:  # pragma: no cover - before Milestone 2
-        return
+    """Load seeded intake answers, policies, fallbacks, invitations and call logs."""
+    from synth.seed_intake import apply_seed_payload
+
     apply_seed_payload(json.loads(paths.intake_json().read_text()))
 
 
 def train_and_score() -> None:
-    """Train the production base model and score the live docket (Milestone 3)."""
-    try:
-        from core.scoring_service import train_production_model
-    except ImportError:  # pragma: no cover - before Milestone 3
-        return
-    train_production_model()
+    """Train the production base model, then score every open case."""
+    from core.scoring_service import train_production_model
+
+    model = train_production_model()
+    val = model.metrics["validation_at_high"]
+    print(
+        f"  model {model.version}: trained on {model.n_train} closed cases; "
+        f"t_high={model.threshold_high:.3f} (validation recall {val['recall']:.3f}, "
+        f"FPR {val['fpr']:.3f}); t_low={model.threshold_low:.3f}"
+    )

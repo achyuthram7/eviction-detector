@@ -171,6 +171,9 @@ class SynthCase:
             "case_type": "EV",
             "amount_claimed": f"{self.amount_claimed:.2f}",
             "hearing_datetime": s.hearing.strftime("%Y-%m-%dT%H:%M") if s.hearing else "",
+            "first_hearing_datetime": self.first_hearing.strftime("%Y-%m-%dT%H:%M")
+            if s.hearing
+            else "",
             "plaintiff_id": self.plaintiff.plaintiff_id,
             "plaintiff_attorney": "true" if self.attorney else "false",
             "defendant_count": str(len(hh.names)),

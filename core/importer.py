@@ -50,8 +50,38 @@ REQUIRED_COLUMNS = (
     "confidential_flag",
     "sealed_flag",
 )
-OPTIONAL_COLUMNS = ("phone", "latest_event_date", "plaintiff_name", "export_date")
-EXPORT_COLUMNS = REQUIRED_COLUMNS[:10] + ("phone",) + REQUIRED_COLUMNS[10:] + OPTIONAL_COLUMNS[1:]
+# Optional additions to the export (PLAN.md Q A2). first_hearing_datetime keeps the as-of rule
+# honest for cases first seen after a continuance (e.g. closed history).
+OPTIONAL_COLUMNS = (
+    "phone",
+    "latest_event_date",
+    "plaintiff_name",
+    "export_date",
+    "first_hearing_datetime",
+)
+EXPORT_COLUMNS = (
+    "case_number",
+    "court_id",
+    "filing_date",
+    "case_type",
+    "amount_claimed",
+    "hearing_datetime",
+    "first_hearing_datetime",
+    "plaintiff_id",
+    "plaintiff_attorney",
+    "defendant_count",
+    "defendant_names",
+    "phone",
+    "mailing_address",
+    "latest_event",
+    "latest_event_date",
+    "disposition_type",
+    "disposition_date",
+    "confidential_flag",
+    "sealed_flag",
+    "plaintiff_name",
+    "export_date",
+)
 
 # Case attributes that come from the feed (compared and copied on every import).
 CASE_FIELDS = (
@@ -132,6 +162,14 @@ def validate_row(raw: dict[str, str | None]) -> tuple[dict | None, list[str]]:
             hearing = parse_datetime(v["hearing_datetime"])
         except ValueError:
             reasons.append(f"hearing_datetime '{v['hearing_datetime']}' is not a valid date/time")
+    first_hearing = None
+    if v["first_hearing_datetime"]:
+        try:
+            first_hearing = parse_datetime(v["first_hearing_datetime"])
+        except ValueError:
+            reasons.append(
+                f"first_hearing_datetime '{v['first_hearing_datetime']}' is not a valid date/time"
+            )
 
     amount = None
     try:
@@ -202,6 +240,7 @@ def validate_row(raw: dict[str, str | None]) -> tuple[dict | None, list[str]]:
         "confidential_flag": bools["confidential_flag"],
         "sealed_flag": bools["sealed_flag"],
         "export_date": export_date,
+        "first_hearing_datetime": first_hearing,
     }
     return record, []
 
@@ -335,7 +374,8 @@ def import_csv(
             case = Case(
                 case_number=number,
                 row_hash=digest,
-                first_hearing_datetime=record["hearing_datetime"],
+                first_hearing_datetime=record["first_hearing_datetime"]
+                or record["hearing_datetime"],
                 is_restricted=_is_restricted(record),
                 working_status="New",
                 first_import_id=run.id,
@@ -372,7 +412,9 @@ def import_csv(
                     )
                 )
                 setattr(case, field, record[field])
-        if case.first_hearing_datetime is None and case.hearing_datetime is not None:
+        if record["first_hearing_datetime"] is not None:
+            case.first_hearing_datetime = record["first_hearing_datetime"]  # feed is authoritative
+        elif case.first_hearing_datetime is None and case.hearing_datetime is not None:
             case.first_hearing_datetime = case.hearing_datetime
         case.is_restricted = _is_restricted(case)
         case.row_hash = digest

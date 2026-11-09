@@ -68,9 +68,7 @@ def after_intake(
 
 
 def rescore(session: Session, case_ids: list[int]) -> None:
-    """Recompute scores for open cases (Milestone 3)."""
-    try:
-        from core.scoring_service import rescore_cases
-    except ImportError:  # pragma: no cover - before Milestone 3
-        return
+    """Recompute scores for open cases (no-op until a model has been trained)."""
+    from core.scoring_service import rescore_cases  # local: scoring pulls in pandas/sklearn
+
     rescore_cases(session, case_ids)

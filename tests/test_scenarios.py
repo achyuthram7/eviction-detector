@@ -294,3 +294,54 @@ def test_tenant_views_own_intake_never_sees_landlord_answers_and_vice_versa(sess
     for text in landlord_pages:
         assert "777" not in text and "333" not in text
     assert "4,321" in landlord_pages[1]
+
+
+# --- Predictor scenarios (Milestone 3) -------------------------------------------------------
+
+from core.constants import NEEDS_OUTREACH, NO_RESPONSE  # noqa: E402
+from core.models import CaseScore  # noqa: E402
+from core.scoring_service import rescore_cases  # noqa: E402
+
+
+def _current_score(session, case_number="97K01-2603-EV-000001") -> CaseScore:
+    session.expire_all()
+    case = session.scalar(select(Case).where(Case.case_number == case_number))
+    return session.scalar(
+        select(CaseScore).where(CaseScore.case_id == case.id, CaseScore.is_current.is_(True))
+    )
+
+
+def test_neither_party_responds_no_response_needs_outreach_not_low(session, simple_model):
+    simple_model(intercept=-3.0)  # base probability far below the Low threshold
+    import_rows(session, [row(1)])
+    score = _current_score(session)
+    assert score.base_tier == "Low"
+    assert score.potential == NO_RESPONSE and score.potential != "Low"
+    assert score.pathway == NEEDS_OUTREACH
+    assert 2 <= len(score.reasons) <= 4
+
+
+def test_tenant_reports_repair_problems_legal_aid_flag_shown_with_settlement_result(
+    session, client, simple_model
+):
+    simple_model()
+    import_rows(session, [row(1)])
+    tenant = _party(session, TENANT)
+    _open_and_submit(
+        client, tenant.token, tenant_form(repair_issues="on", repair_details="No heat")
+    )
+    score = _current_score(session)
+    assert score.legal_aid_flag is True
+    assert score.potential in ("High", "Medium", "Low")  # settlement result still shown
+    assert 0 < score.final_prob < 1 and 2 <= len(score.reasons) <= 4
+
+
+def test_rescoring_reuses_base_and_updates_layer2(session, simple_model):
+    simple_model()
+    import_rows(session, [row(1)])
+    first = _current_score(session)
+    rescore_cases(session, [first.case_id])
+    session.commit()
+    rows = session.scalars(select(CaseScore).where(CaseScore.case_id == first.case_id)).all()
+    assert len(rows) == 2 and sum(r.is_current for r in rows) == 1
+    assert rows[-1].base_prob == first.base_prob
