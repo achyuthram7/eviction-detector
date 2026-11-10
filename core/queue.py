@@ -183,10 +183,19 @@ def build_rows(session: Session, cases: list[Case]) -> list[QueueRow]:
 
 
 def sort_key(row: QueueRow):
-    dth = row.days_to_hearing
+    """Days to hearing first (soonest at the top). Cases already in diversion need no
+    outreach, so they follow, ordered by their next status-check date."""
+    in_diversion = row.case.working_status == IN_DIVERSION and row.diversion is not None
+    if in_diversion:
+        today = clock.today()
+        upcoming = [d for d in (row.diversion["check_30"], row.diversion["check_60"]) if d >= today]
+        days = ((upcoming[0] if upcoming else row.diversion["stay_end"]) - today).days
+    else:
+        days = row.days_to_hearing
     return (
-        dth is None,
-        dth if dth is not None else 0,
+        in_diversion,
+        days is None,
+        days if days is not None else 0,
         POTENTIAL_ORDER.get(row.potential or "", 9),
         -(row.final_prob or 0.0),
         row.case.case_number,

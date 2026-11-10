@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Landlord policies{% endblock %}
+{% block content %}
+<h1>Landlord standing policies</h1>
+<p class="muted">Each landlord account (plaintiff ID) has a portfolio link. Answers given there apply automatically to every open and future case from that plaintiff, unless the landlord answers differently for one case. Showing the 50 most frequent filers.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Landlord</th><th>Cases</th><th>Policy</th><th>Portfolio link</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td>{{ r.plaintiff.label }}<br><span class="muted">{{ r.plaintiff.plaintiff_id }}</span></td>
+      <td>{{ r.cases }}</td>
+      <td>{% if r.policy %}Saved {{ r.policy.submitted_at.strftime('%Y-%m-%d') if r.policy.submitted_at else '' }} · plan {{ 'yes' if r.policy.accepts_plan else 'no' }}{% if r.policy.max_plan_months %} ({{ r.policy.max_plan_months }} mo){% endif %} · goal {{ r.policy.goal or '—' }}{% else %}<span class="muted">none</span>{% endif %}</td>
+      <td><code>{{ r.url }}</code></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endblock %}

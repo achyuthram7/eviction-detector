@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Invitation letter{% endblock %}
+{% block header %}{% endblock %}
+{% block container_class %} narrow{% endblock %}
+{% block content %}
+<p class="no-print"><a href="/staff/cases/{{ case.id }}">← Back to case</a> · <button class="btn small" type="button" data-print>Print</button></p>
+<article class="panel">
+  <h1>Your eviction case: tell the court what could work</h1>
+  <p><strong>{{ party.full_name or ('Landlord' if party.role == 'landlord' else 'Tenant') }}</strong> · Case {{ case.case_number }}</p>
+  <p>Court staff can help both sides look at options before the first hearing — for example a payment plan, more time to move, or rental assistance. Taking part is voluntary. Answering takes about 5 minutes.</p>
+  <p class="disclosure"><strong>{{ t_en('disclosure') }}</strong></p>
+  <p>Scan the code with your phone camera, or type the link:</p>
+  <p class="qr"><img src="/staff/parties/{{ party.id }}/qr.png" alt="QR code"></p>
+  <p><code>{{ url }}</code></p>
+  <hr>
+  <h2 lang="es">Su caso de desalojo: díganos qué podría funcionar</h2>
+  <p lang="es">El personal del tribunal puede ayudar a ambas partes a ver opciones antes de la primera audiencia. Participar es voluntario. Contestar toma unos 5 minutos.</p>
+  <p class="disclosure" lang="es"><strong>{{ t_es('disclosure') }}</strong></p>
+  <p lang="es">Escanee el código con la cámara de su teléfono o escriba el enlace de arriba. En la página, toque "Español".</p>
+  <p class="muted">Without the link? Go to {{ url.split('/r/')[0] }}/find and enter the case number and your last name. / ¿Sin el enlace? Vaya a {{ url.split('/r/')[0] }}/find.</p>
+</article>
+{% endblock %}

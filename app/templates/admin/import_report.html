@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Import report{% endblock %}
+{% block content %}
+<p><a href="/admin/import">← Imports</a></p>
+<h1>Import report: {{ run.filename }}</h1>
+<p class="muted">{{ run.imported_at.strftime('%Y-%m-%d %H:%M') }}{% if run.export_date %} · export dated {{ run.export_date }}{% endif %} · SHA-256 {{ run.file_sha256[:12] }}…</p>
+{% if run.file_error %}<p class="error" role="alert">{{ run.file_error }}</p>{% endif %}
+<div class="cards">
+  <div class="card"><strong>{{ run.rows_total }}</strong> rows read</div>
+  <div class="card"><strong>{{ run.inserted }}</strong> new cases · <strong>{{ run.updated }}</strong> updated · <strong>{{ run.unchanged }}</strong> unchanged</div>
+  <div class="card"><strong>{{ run.rejected }}</strong> rejected</div>
+  <div class="card"><strong>{{ run.newly_restricted }}</strong> newly restricted · <strong>{{ run.reconciliation_flags }}</strong> reconciliation flags</div>
+</div>
+
+<h2>Rejected rows</h2>
+{% if run.rejections %}
+<div class="table-wrap"><table>
+  <thead><tr><th>Row</th><th>Case number (as given)</th><th>Reasons</th></tr></thead>
+  <tbody>{% for r in run.rejections %}<tr><td>{{ r.row_number }}</td><td>{{ r.case_number_raw or '—' }}</td><td><ul>{% for reason in r.reasons %}<li>{{ reason }}</li>{% endfor %}</ul></td></tr>{% endfor %}</tbody>
+</table></div>
+{% else %}<p>None.</p>{% endif %}
+
+<h2>Reconciliation: working status vs. official events</h2>
+{% if flags %}
+<div class="table-wrap"><table>
+  <thead><tr><th>Case</th><th>Kind</th><th>Before</th><th>Official event</th><th>Message</th></tr></thead>
+  <tbody>{% for f, case in flags %}<tr>
+    <td>{% if case %}<a href="/staff/cases/{{ case.id }}">{{ case.case_number }}</a>{% endif %}</td>
+    <td>{{ f.kind.replace('_', ' ') }}</td><td>{{ f.working_status_before or '—' }}</td><td>{{ f.feed_event or '—' }}</td><td>{{ f.message }}</td>
+  </tr>{% endfor %}</tbody>
+</table></div>
+{% else %}<p>No mismatches.</p>{% endif %}
+{% if hidden_flags %}<p class="muted">{{ hidden_flags }} flag(s) concern restricted cases you cannot see.</p>{% endif %}
+<p><a class="btn" href="/staff/queue">Go to the call queue</a></p>
+{% endblock %}

@@ -13,3 +13,4 @@ data/*
 # Generated reports.
 reports/*
 !reports/.gitkeep
+.claude/

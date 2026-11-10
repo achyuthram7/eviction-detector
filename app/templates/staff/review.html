@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% import "staff/_macros.html" as m with context %}
+{% block title %}Review queue{% endblock %}
+{% block content %}
+<h1>Fallback review queue</h1>
+<p class="muted">Submissions made with a case number and last name instead of a link. Unmatched ones need a staff check; matched ones are attached as <em>unverified</em> until a staff member confirms who sent them.</p>
+{% for item in items %}
+  {% set sub = item.sub %}
+  <section class="panel">
+    <h2>{{ sub.role_claimed | capitalize }} · entered case {{ sub.case_number_entered or '—' }} · last name "{{ sub.last_name_entered }}"</h2>
+    <p class="muted">{{ sub.created_at.strftime('%Y-%m-%d %H:%M') }} · status {{ sub.status.replace('_', ' ') }}{% if sub.note %} · {{ sub.note }}{% endif %}</p>
+    {% if item.case %}
+      <p>Case exists: <a href="/staff/cases/{{ item.case.id }}">{{ item.case.case_number }}</a> — parties:
+        {% for p in item.case.parties %}{{ p.role }} {{ p.full_name or '' }}{% if not loop.last %}; {% endif %}{% endfor %}</p>
+      <form method="post" action="/staff/review/{{ sub.id }}" class="inline-form">
+        {{ m.csrf() }}
+        <label>Attach to<select name="party_id">{% for p in item.case.parties %}<option value="{{ p.id }}"{% if p.id == sub.matched_party_id %} selected{% endif %}>{{ p.role }} {{ p.full_name or '' }}</option>{% endfor %}</select></label>
+        <button class="btn small" name="action" value="attach" type="submit">Verified — attach</button>
+        <label>Note<input name="note" maxlength="500"></label>
+        <button class="btn small danger" name="action" value="reject" type="submit">Reject</button>
+      </form>
+    {% else %}
+      <p>{% if item.case_exists_hidden %}The case is restricted for your role.{% else %}No case with this number.{% endif %}</p>
+      <form method="post" action="/staff/review/{{ sub.id }}" class="inline-form">
+        {{ m.csrf() }}
+        <label>Note<input name="note" maxlength="500"></label>
+        <button class="btn small danger" name="action" value="reject" type="submit">Close (no match)</button>
+      </form>
+    {% endif %}
+    <details><summary>Submitted answers</summary>
+      <dl class="kv">{% for k, v in sub.answers.items() if v not in (none, '', false) %}<dt>{{ k.replace('_', ' ') }}</dt><dd>{{ v }}</dd>{% endfor %}</dl>
+    </details>
+  </section>
+{% else %}
+  <p>Nothing to review.</p>
+{% endfor %}
+{% endblock %}

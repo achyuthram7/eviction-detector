@@ -7,7 +7,8 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.routes import public
+from app import auth
+from app.routes import admin, public, staff
 from app.templating import APP_DIR, render
 from core.settings import get_settings
 
@@ -47,7 +48,9 @@ def create_app() -> FastAPI:
     )
     app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
     app.include_router(public.router)
-    _include_staff_routes(app)
+    app.include_router(auth.router)
+    app.include_router(staff.router)
+    app.include_router(admin.router)
 
     @app.exception_handler(StarletteHTTPException)
     async def http_error(request: Request, exc: StarletteHTTPException):
@@ -64,16 +67,6 @@ def create_app() -> FastAPI:
         )
 
     return app
-
-
-def _include_staff_routes(app: FastAPI) -> None:
-    """Staff and admin routes (Milestone 4)."""
-    try:
-        from app.routes import admin, staff
-    except ImportError:  # pragma: no cover - before Milestone 4
-        return
-    app.include_router(staff.router)
-    app.include_router(admin.router)
 
 
 app = create_app()

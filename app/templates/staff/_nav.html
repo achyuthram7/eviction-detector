@@ -1,0 +1,15 @@
+<nav class="nav" aria-label="Staff">
+  <div class="nav-inner">
+    <a href="/staff/queue">Call queue</a>
+    {% if user.role in ('clerk', 'facilitator', 'admin') %}<a href="/staff/review">Review queue</a>{% endif %}
+    {% if user.role in ('clerk', 'admin') %}<a href="/admin/import">Import feed</a>{% endif %}
+    {% if user.role == 'admin' %}
+      <a href="/admin/reports">Reports</a>
+      <a href="/admin/audit">Audit log</a>
+      <a href="/admin/policies">Landlord policies</a>
+      <a href="/admin/users">Users</a>
+    {% endif %}
+    <span class="who">{{ user.display_name }} · {{ user.role }}</span>
+    <form method="post" action="/logout"><button class="btn small" type="submit">Sign out</button></form>
+  </div>
+</nav>

@@ -1,0 +1,19 @@
+<div id="call-log">
+  <table>
+    <thead><tr><th>When</th><th>Who called</th><th>Channel</th><th>Outcome</th><th>Notes</th><th>Next action</th></tr></thead>
+    <tbody>
+    {% for c in calls %}
+      <tr>
+        <td>{{ c.at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>{{ users[c.user_id].username if c.user_id and users.get(c.user_id) else '—' }}</td>
+        <td>{{ c.channel.replace('_', ' ') }}</td>
+        <td>{{ c.outcome.replace('_', ' ') }}</td>
+        <td>{{ c.notes or '' }}</td>
+        <td>{{ c.next_action or '' }}{% if c.next_action_due %} (by {{ c.next_action_due }}){% endif %}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="muted">No contact attempts logged yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>

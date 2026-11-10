@@ -345,3 +345,59 @@ def test_rescoring_reuses_base_and_updates_layer2(session, simple_model):
     rows = session.scalars(select(CaseScore).where(CaseScore.case_id == first.case_id)).all()
     assert len(rows) == 2 and sum(r.is_current for r in rows) == 1
     assert rows[-1].base_prob == first.base_prob
+
+
+# --- Dashboard scenarios (Milestone 4) --------------------------------------------------------
+
+from core.models import AuditLog  # noqa: E402
+from tests.factories import login  # noqa: E402
+
+
+def test_judge_views_case_sees_both_parties_answers_and_score_reasons(
+    session, client, simple_model
+):
+    simple_model()
+    import_rows(session, [row(1)])
+    tenant, landlord = _party(session, TENANT), _party(session, LANDLORD)
+    _open_and_submit(client, tenant.token, tenant_form(pay_30d="777"))
+    _open_and_submit(client, landlord.token, landlord_form(min_to_dismiss="4321"))
+    login(client, "judge")
+    page = client.get(f"/staff/cases/{tenant.case_id}")
+    assert page.status_code == 200
+    assert "$777" in page.text and "$4,321" in page.text  # both parties' answers
+    score = _current_score(session)
+    import html
+
+    shown = html.unescape(page.text)
+    assert score.reasons and all(r in shown for r in score.reasons)  # score reasons
+    assert "Log contact attempt" not in page.text  # judges are read-only
+
+
+def test_case_sealed_in_feed_hidden_from_clerk_and_judge_views_after_import(session, client):
+    import_rows(session, [row(1), row(2)])
+    sealed_id = _party(session, TENANT).case_id
+    for role in ("clerk", "judge"):
+        login(client, role)
+        assert "97K01-2603-EV-000001" in client.get("/staff/queue").text
+    import_rows(session, [row(1, sealed_flag="true"), row(2)])
+    for role in ("clerk", "judge"):
+        login(client, role)
+        queue = client.get("/staff/queue").text
+        assert "97K01-2603-EV-000001" not in queue and "97K01-2603-EV-000002" in queue
+        assert client.get(f"/staff/cases/{sealed_id}").status_code == 404
+    login(client, "facilitator")
+    queue = client.get("/staff/queue").text
+    assert "97K01-2603-EV-000001" in queue and "Restricted" in queue
+
+
+def test_restricted_case_opened_view_written_to_audit_log(session, client):
+    import_rows(session, [row(1, confidential_flag="true", latest_event="diversion_stay")])
+    case_id = _party(session, TENANT).case_id
+    login(client, "facilitator")
+    assert client.get(f"/staff/cases/{case_id}").status_code == 200
+    session.expire_all()
+    entry = session.scalar(
+        select(AuditLog).where(AuditLog.case_id == case_id, AuditLog.action == "view_case")
+    )
+    assert entry is not None and entry.restricted is True
+    assert entry.username == "facilitator" and entry.at is not None

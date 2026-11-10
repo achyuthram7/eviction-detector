@@ -1,0 +1,39 @@
+{% import "staff/_macros.html" as m with context %}
+<p class="muted">{{ rows | length }} case{{ '' if rows | length == 1 else 's' }}{% if sees_restricted %} · restricted cases are included and badged{% endif %}</p>
+<div class="table-wrap">
+<table class="queue">
+  <thead>
+    <tr>
+      <th>Case</th><th>Hearing</th><th>Tenant</th><th>Landlord</th><th>Potential</th>
+      <th>Pathway</th><th>Confidence</th><th>Consent</th><th>Last contact</th><th>Next action</th><th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td data-label="Case"><a href="/staff/cases/{{ r.case.id }}">{{ r.case.case_number }}</a> {{ m.restricted_badge(r.case) }}</td>
+      <td data-label="Hearing">
+        {% if r.case.hearing_datetime %}{{ r.case.hearing_datetime.strftime('%b %d %H:%M') }}
+          <span class="days{% if r.days_to_hearing is not none and r.days_to_hearing <= 7 %} soon{% endif %}">
+            ({% if r.days_to_hearing < 0 %}{{ -r.days_to_hearing }}d ago{% else %}{{ r.days_to_hearing }}d{% endif %})
+          </span>
+        {% else %}—{% endif %}
+      </td>
+      <td data-label="Tenant">{{ r.tenant_status }}</td>
+      <td data-label="Landlord">{{ r.landlord_status }}</td>
+      <td data-label="Potential">{{ m.potential_pill(r.potential) }}{% if r.potential and r.potential.startswith('No response') and r.base_tier %} <span class="muted">base {{ r.base_tier }}</span>{% endif %}</td>
+      <td data-label="Pathway">{{ r.pathway or '—' }} {{ m.legal_badge(r.legal_aid_flag) }}</td>
+      <td data-label="Confidence">{{ r.confidence or '—' }}</td>
+      <td data-label="Consent">{{ r.consent }}</td>
+      <td data-label="Last contact">{% if r.last_contact %}{{ r.last_contact.at.strftime('%b %d') }} · {{ r.last_contact.outcome.replace('_', ' ') }}{% else %}—{% endif %}</td>
+      <td data-label="Next action">{{ r.next_action }}</td>
+      <td data-label="Status"><span class="pill status">{{ r.case.working_status }}</span>
+        {% if r.diversion %}<br><span class="muted">checks {{ r.diversion.check_30.strftime('%b %d') }} / {{ r.diversion.check_60.strftime('%b %d') }}</span>{% endif %}
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="11">No cases match these filters.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Users{% endblock %}
+{% block content %}
+<h1>Staff accounts</h1>
+<p class="muted">Demo accounts (synthetic). Passwords are stored as scrypt hashes; the demo passwords are listed in the README.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Active</th></tr></thead>
+  <tbody>{% for u in users %}<tr><td>{{ u.username }}</td><td>{{ u.display_name }}</td><td>{{ u.role }}</td><td>{{ 'yes' if u.active else 'no' }}</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

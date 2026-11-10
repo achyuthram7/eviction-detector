@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% import "staff/_macros.html" as m with context %}
+{% block title %}{{ case.case_number }}{% endblock %}
+{% block content %}
+<p><a href="/staff/queue">← Call queue</a></p>
+<h1>{{ case.case_number }} {{ m.restricted_badge(case) }}</h1>
+<p>
+  <span class="pill status">{{ case.working_status }}{% if case.settled_subtype %} ({{ case.settled_subtype }}){% endif %}</span>
+  · Court {{ case.court_id }} · Filed {{ case.filing_date }}
+  · Hearing {% if case.hearing_datetime %}{{ case.hearing_datetime.strftime('%Y-%m-%d %H:%M') }}
+    {% if days is not none %}<span class="days{% if days <= 7 %} soon{% endif %}">({% if days < 0 %}{{ -days }} days ago{% else %}in {{ days }} days{% endif %})</span>{% endif %}
+  {% else %}not set{% endif %}
+  · Official event: <strong>{{ case.latest_event.replace('_', ' ') }}</strong>{% if case.latest_event_date %} ({{ case.latest_event_date }}){% endif %}
+</p>
+{% if case.is_restricted %}<p class="notice">Restricted: the feed marks this case confidential or sealed. Hidden from clerk and judge views. This view was written to the audit log.</p>{% endif %}
+
+<div class="grid three">
+  <section class="panel" aria-labelledby="score-h">
+    <h2 id="score-h">Settlement result</h2>
+    {% if score %}
+      <p>{{ m.potential_pill(score.potential) }} {{ m.legal_badge(score.legal_aid_flag) }}</p>
+      <dl class="kv">
+        <dt>Pathway</dt><dd>{{ score.pathway }}</dd>
+        <dt>Confidence</dt><dd>{{ score.confidence }}</dd>
+        <dt>Probability</dt><dd>{{ score.final_prob | pct }} <span class="muted">(base {{ score.base_prob | pct }}, base tier {{ score.base_tier }})</span></dd>
+        {% if score.overlap_class and score.overlap_class != 'unknown' %}<dt>Money overlap</dt><dd>{{ score.overlap_class }}
+          {% set ov = score.features.get('detail', {}).get('overlap', {}) %}{% if ov.get('capacity') is not none %}<span class="muted"> — tenant can cover {{ ov.capacity | money }} vs landlord minimum {{ ov.minimum | money }}</span>{% endif %}</dd>{% endif %}
+      </dl>
+      <h3>Why</h3>
+      <ul class="reasons">{% for r in score.reasons %}<li>{{ r }}</li>{% endfor %}</ul>
+      <p class="muted">Advisory only: sets call priority, never eligibility. Model {{ score.model_version }}.</p>
+    {% else %}
+      <p class="muted">{% if terminal %}Closed cases are not scored.{% else %}Not scored yet (no model trained).{% endif %}</p>
+    {% endif %}
+  </section>
+
+  <section class="panel" aria-labelledby="actions-h">
+    <h2 id="actions-h">Status &amp; actions</h2>
+    {% if diversion %}
+      <p><strong>In diversion</strong> — stay from {{ diversion.stay_start }}.<br>
+      30-day check: <strong>{{ diversion.check_30 }}</strong><br>60-day check: <strong>{{ diversion.check_60 }}</strong><br>Stay ends: {{ diversion.stay_end }}</p>
+    {% endif %}
+    {% if case.diversion_agreed_at %}<p class="muted">Diversion agreement recorded in this tool {{ case.diversion_agreed_at.strftime('%Y-%m-%d') }}{% if case.working_status != 'In diversion' %} — waiting for the feed to show the stay{% endif %}.</p>{% endif %}
+    {% if can_work and not terminal %}
+      <form method="post" action="/staff/cases/{{ case.id }}/status" class="inline-form">
+        {{ m.csrf() }}
+        {% for key, label in staff_actions.items() %}
+          <button class="btn small" name="action" value="{{ key }}" type="submit">{{ label }}</button>
+        {% endfor %}
+      </form>
+      <p><button class="btn" hx-post="/staff/cases/{{ case.id }}/diversion" hx-target="#checklist" hx-swap="innerHTML">Both agreed to diversion</button></p>
+      <div id="checklist"></div>
+    {% elif not can_work %}
+      <p class="muted">Read-only view for your role.</p>
+    {% endif %}
+  </section>
+</div>
+
+<div class="grid two">
+  {% for t in tenants %}
+  <section class="panel" aria-label="Tenant answers">
+    <h2>Tenant {{ loop.index }}: {{ t.party.full_name }}</h2>
+    <p class="muted">Phone {{ t.party.phone or '—' }}{% if t.resp %} · answered {{ t.resp.submitted_at.strftime('%Y-%m-%d %H:%M') if t.resp.submitted_at else '' }} via {{ t.resp.source }}{% if not t.resp.verified %} <strong>(unverified)</strong>{% endif %}{% if t.resp.revision > 1 %} · updated {{ t.resp.revision - 1 }}×{% endif %}{% endif %}</p>
+    {% if t.rows %}
+      <dl class="answers">{% for label, value in t.rows %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+    {% else %}<p>No answers yet.</p>{% endif %}
+    {% if can_work %}
+      <p class="qr"><img src="/staff/parties/{{ t.party.id }}/qr.png" alt="QR code for this tenant's link"></p>
+      <p class="muted">Link: <code>{{ t.url }}</code></p>
+      <p><a class="btn small" href="/staff/parties/{{ t.party.id }}/letter">Printable letter</a></p>
+    {% endif %}
+  </section>
+  {% endfor %}
+  <section class="panel" aria-label="Landlord answers">
+    <h2>Landlord: {{ case.plaintiff.label }}</h2>
+    <p class="muted">{{ 'Attorney on record' if case.plaintiff_attorney else 'No attorney' }}{% if landlord.resp %} · {% if landlord.resp.source == 'policy' %}standing policy applied{% else %}answered via {{ landlord.resp.source }}{% endif %}{% endif %}</p>
+    {% if landlord.rows %}
+      <dl class="answers">{% for label, value in landlord.rows %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+    {% else %}<p>No answers yet.</p>{% endif %}
+    {% if can_work and landlord.party %}
+      <p class="qr"><img src="/staff/parties/{{ landlord.party.id }}/qr.png" alt="QR code for the landlord's link"></p>
+      <p class="muted">Link: <code>{{ landlord.url }}</code></p>
+      <p><a class="btn small" href="/staff/parties/{{ landlord.party.id }}/letter">Printable letter</a></p>
+    {% endif %}
+  </section>
+</div>
+<p class="muted">Both parties' answers are visible to the judge and court staff only; parties never see each other's answers.</p>
+
+<section class="panel" id="calls" aria-labelledby="calls-h">
+  <h2 id="calls-h">Call log</h2>
+  {% if can_work %}
+  <form class="inline-form" hx-post="/staff/cases/{{ case.id }}/calls" hx-target="#call-log" hx-swap="outerHTML" method="post" action="/staff/cases/{{ case.id }}/calls">
+    {{ m.csrf() }}
+    <label>Channel<select name="channel">{% for c in channels %}<option>{{ c }}</option>{% endfor %}</select></label>
+    <label>Outcome<select name="outcome">{% for o in outcomes %}<option value="{{ o }}">{{ o.replace('_', ' ') }}</option>{% endfor %}</select></label>
+    <label>Who<select name="party_id"><option value="">—</option>{% for t in tenants %}<option value="{{ t.party.id }}">Tenant {{ loop.index }}</option>{% endfor %}{% if landlord.party %}<option value="{{ landlord.party.id }}">Landlord</option>{% endif %}</select></label>
+    <label>Next action<input name="next_action" maxlength="200"></label>
+    <label>Due<input name="next_action_due" type="date"></label>
+    <label class="full-row">Notes<textarea name="notes" rows="2" maxlength="2000"></textarea></label>
+    <button class="btn" type="submit">Log contact attempt</button>
+  </form>
+  {% endif %}
+  {% include "staff/_call_log.html" %}
+</section>
+
+<div class="grid two">
+  <section class="panel">
+    <h2>Status history</h2>
+    <ul>
+      {% for h in history %}<li>{{ h.at.strftime('%Y-%m-%d %H:%M') }} — {{ h.from_status or 'imported' }} → <strong>{{ h.to_status }}</strong>{% if h.subtype %} ({{ h.subtype }}){% endif %} <span class="muted">[{{ h.source }}{% if h.user_id and users.get(h.user_id) %} · {{ users[h.user_id].username }}{% endif %}{% if h.note %} · {{ h.note }}{% endif %}]</span></li>{% endfor %}
+    </ul>
+  </section>
+  <section class="panel">
+    <h2>Feed changes &amp; reconciliation</h2>
+    {% for f in flags %}<p class="notice">{{ f.created_at.strftime('%Y-%m-%d') }}: {{ f.message }}</p>{% endfor %}
+    <ul>
+      {% for c in changes %}<li>{{ c.field.replace('_', ' ') }}: {{ c.old_value or '—' }} → {{ c.new_value or '—' }}</li>{% else %}<li class="muted">No changes since first import.</li>{% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

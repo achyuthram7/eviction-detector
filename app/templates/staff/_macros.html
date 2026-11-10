@@ -1,0 +1,16 @@
+{% macro potential_pill(potential) -%}
+{%- set cls = {'High': 'high', 'Medium': 'medium', 'Low': 'low'}.get(potential, 'noresp') -%}
+{% if potential %}<span class="pill {{ cls }}">{{ potential }}</span>{% else %}<span class="muted">not scored</span>{% endif %}
+{%- endmacro %}
+
+{% macro restricted_badge(case) -%}
+{% if case.is_restricted %}<span class="pill restricted" title="Confidential or sealed in the feed">Restricted</span>{% endif %}
+{%- endmacro %}
+
+{% macro legal_badge(flag) -%}
+{% if flag %}<span class="pill legal" title="Habitability, retaliation, notice or payment dispute reported">Legal-aid referral</span>{% endif %}
+{%- endmacro %}
+
+{% macro csrf() -%}
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+{%- endmacro %}

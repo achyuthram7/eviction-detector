@@ -1,0 +1,12 @@
+<div class="panel" id="diversion-checklist">
+  <p class="notice"><strong>{{ checklist.notice }}</strong><br>
+  Recorded in this tool only. Nothing was sent to Odyssey or anyone else — make the official entries yourself.</p>
+  <h3>Odyssey entries to make</h3>
+  <ol class="checklist" id="checklist-items">
+    {% for item in checklist['items'] %}<li><label class="choice"><input type="checkbox"> {{ item }}</label></li>{% endfor %}
+  </ol>
+  <h3>Draft case management order</h3>
+  <p class="muted">30-day check {{ checklist.dates.check_30 }} · 60-day check {{ checklist.dates.check_60 }} · stay ends {{ checklist.dates.stay_end }}</p>
+  <div class="copybox" id="draft-order">{{ checklist.draft_order }}</div>
+  <p><button class="btn small" type="button" data-copy="draft-order">Copy draft order</button></p>
+</div>

@@ -84,3 +84,21 @@ def landlord_form(**overrides) -> dict:
     }
     form.update(overrides)
     return form
+
+
+def login(client, username: str) -> str:
+    """Sign in as a demo user; returns the CSRF token for later POSTs."""
+    import re
+
+    from core.db import session_scope
+    from core.users import DEMO_USERS, create_demo_users
+
+    with session_scope() as s:
+        create_demo_users(s)
+    password = next(p for u, _d, _r, p in DEMO_USERS if u == username)
+    client.post("/logout")
+    resp = client.post("/login", data={"username": username, "password": password})
+    assert resp.status_code == 200, resp.text[:300]
+    match = re.search(r'"X-CSRF-Token": "([^"]+)"', resp.text)
+    assert match, "csrf token not found"
+    return match.group(1)
