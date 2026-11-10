@@ -8,6 +8,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import func, select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.auth import check_csrf, require_roles
@@ -36,12 +37,28 @@ IMPORTERS = (CLERK, ADMIN)
 MAX_UPLOAD = 20 * 1024 * 1024
 
 
+BUSY_MESSAGE = (
+    "The database was busy, so nothing was imported. Wait a moment and import the file again."
+)
+
+
 @router.get("/import")
 def import_page(
     request: Request, user: User = Depends(require_roles(*IMPORTERS)), db: Session = Depends(get_db)
 ):
+    return _render_import_page(request, db)
+
+
+def _render_import_page(request: Request, db: Session, *, error: str | None = None, status=200):
     runs = db.scalars(select(ImportRun).order_by(ImportRun.id.desc()).limit(20)).all()
-    return render(request, "admin/import.html", runs=runs, demo_files=_demo_files())
+    return render(
+        request,
+        "admin/import.html",
+        status_code=status,
+        runs=runs,
+        demo_files=_demo_files(),
+        error=error,
+    )
 
 
 def _demo_files() -> dict[str, Path]:
@@ -49,8 +66,26 @@ def _demo_files() -> dict[str, Path]:
     return {p.name: p for p in sorted(folder.glob("*.csv"))} if folder.exists() else {}
 
 
+def _import_and_report(
+    request: Request, db: Session, user: User, source, filename: str, details: dict
+):
+    """Import in one transaction. If SQLite stays locked past the busy timeout, nothing is
+    saved and the clerk sees a retry message instead of a server error."""
+    try:
+        run = import_csv(db, source, filename=filename, user_id=user.id)
+        log(db, user, "import", details={"import_id": run.id, **details})
+        db.commit()
+    except OperationalError as exc:
+        if "locked" not in str(exc).lower():
+            raise
+        db.rollback()
+        return _render_import_page(request, db, error=BUSY_MESSAGE, status=503)
+    return RedirectResponse(f"/admin/imports/{run.id}", status_code=303)
+
+
 @router.post("/import/demo/{name}", dependencies=[Depends(check_csrf)])
 def import_demo_file(
+    request: Request,
     name: str,
     user: User = Depends(require_roles(*IMPORTERS)),
     db: Session = Depends(get_db),
@@ -59,14 +94,12 @@ def import_demo_file(
     files = _demo_files()
     if name not in files:
         raise HTTPException(status_code=404, detail="Not found")
-    run = import_csv(db, files[name], filename=name, user_id=user.id)
-    log(db, user, "import", details={"import_id": run.id, "file": name, "demo": True})
-    db.commit()
-    return RedirectResponse(f"/admin/imports/{run.id}", status_code=303)
+    return _import_and_report(request, db, user, files[name], name, {"file": name, "demo": True})
 
 
 @router.post("/import", dependencies=[Depends(check_csrf)])
 async def import_upload(
+    request: Request,
     file: UploadFile = File(...),
     user: User = Depends(require_roles(*IMPORTERS)),
     db: Session = Depends(get_db),
@@ -74,10 +107,8 @@ async def import_upload(
     data = await file.read(MAX_UPLOAD + 1)
     if len(data) > MAX_UPLOAD:
         raise HTTPException(status_code=413, detail="File too large")
-    run = import_csv(db, data, filename=Path(file.filename or "upload.csv").name, user_id=user.id)
-    log(db, user, "import", details={"import_id": run.id, "file": run.filename})
-    db.commit()
-    return RedirectResponse(f"/admin/imports/{run.id}", status_code=303)
+    filename = Path(file.filename or "upload.csv").name
+    return _import_and_report(request, db, user, data, filename, {"file": filename})
 
 
 @router.get("/imports/{run_id}")

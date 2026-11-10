@@ -2,6 +2,7 @@
 {% block title %}Import feed{% endblock %}
 {% block content %}
 <h1>Import the daily Odyssey export</h1>
+{% if error %}<p class="notice" role="alert">{{ error }}</p>{% endif %}
 <p class="muted">Simulated export (CSV). The tool only reads it — it never writes to Odyssey. Importing the same file again changes nothing.</p>
 <form method="post" action="/admin/import" enctype="multipart/form-data" class="panel">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

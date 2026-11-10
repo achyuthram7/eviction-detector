@@ -228,3 +228,49 @@ def test_import_demo_file_button(session, client):
     assert (
         client.post("/admin/import/demo/..%2Fapp.db", data={"csrf_token": csrf}).status_code == 404
     )
+
+
+def test_sqlite_waits_for_locks_30_seconds_by_default(monkeypatch):
+    from core.db import get_engine, reset_engine
+    from core.settings import reset_settings
+
+    monkeypatch.delenv("SQLITE_BUSY_TIMEOUT", raising=False)
+    reset_settings()
+    reset_engine()
+    with get_engine().connect() as conn:
+        assert conn.exec_driver_sql("PRAGMA busy_timeout").scalar() == 30_000
+
+
+def test_import_while_database_locked_shows_retry_message(client, monkeypatch):
+    """Live-site failure: another connection held SQLite's write lock past the timeout and the
+    import crashed with a 500. Now nothing is saved and the clerk is told to try again."""
+    import sqlite3
+
+    from sqlalchemy import func
+
+    from core.db import new_session, reset_engine
+    from core.models import ImportRun
+    from core.settings import get_settings, reset_settings
+
+    demo = get_settings().demo_dir
+    demo.mkdir(parents=True, exist_ok=True)
+    (demo / "day1.csv").write_bytes(csv_bytes([row(1), row(2)]))
+    csrf = login(client, "clerk")
+    monkeypatch.setenv("SQLITE_BUSY_TIMEOUT", "0.2")
+    reset_settings()
+    reset_engine()
+
+    blocker = sqlite3.connect(get_settings().database_url.removeprefix("sqlite:///"))
+    blocker.execute("BEGIN IMMEDIATE")  # hold the write lock
+    try:
+        resp = client.post("/admin/import/demo/day1.csv", data={"csrf_token": csrf})
+    finally:
+        blocker.rollback()
+        blocker.close()
+    assert resp.status_code == 503
+    assert "nothing was imported" in resp.text
+    with new_session() as s:
+        assert s.scalar(select(func.count()).select_from(ImportRun)) == 0
+
+    resp = client.post("/admin/import/demo/day1.csv", data={"csrf_token": csrf})
+    assert resp.status_code == 200 and "2</strong> new cases" in resp.text

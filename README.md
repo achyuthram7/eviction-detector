@@ -142,6 +142,7 @@ container starts as root only to make that folder writable, then runs as `appuse
 | `SECRET_KEY` | **yes** outside a laptop demo | dev value | signs staff session cookies |
 | `PUBLIC_BASE_URL` | yes, for QR codes | `RENDER_EXTERNAL_URL` on Render, else `http://localhost:8000` | the address QR codes and party links point to |
 | `DATABASE_URL` | no | `sqlite:///data/app.db` | SQLAlchemy URL |
+| `SQLITE_BUSY_TIMEOUT` | no | `30` | seconds a write waits for SQLite's lock before the import page asks the user to retry |
 | `APP_TODAY` | no | real date | freeze "today" (YYYY-MM-DD) for a reproducible demo |
 | `SEED_ON_START` | no | `true` | Docker: build demo data on first start |
 | `DATA_DIR`, `REPORTS_DIR` | no | `data/`, `reports/` | where generated files go |

@@ -24,6 +24,7 @@ class Settings:
     data_dir: Path
     reports_dir: Path
     database_url: str
+    sqlite_busy_timeout: float
     secret_key: str
     public_base_url: str
     app: dict
@@ -60,6 +61,9 @@ def get_settings() -> Settings:
         data_dir=data_dir,
         reports_dir=reports_dir,
         database_url=db_url,
+        # Seconds a write waits for SQLite's lock before giving up (the driver default is 5,
+        # too short on a small shared CPU such as Render's free plan).
+        sqlite_busy_timeout=float(os.environ.get("SQLITE_BUSY_TIMEOUT") or 30),
         secret_key=os.environ.get("SECRET_KEY") or "dev-only-secret-change-me",
         public_base_url=(os.environ.get("PUBLIC_BASE_URL") or "http://localhost:8000").rstrip("/"),
         app=load_yaml("app.yaml"),

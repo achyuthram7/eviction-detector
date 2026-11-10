@@ -18,10 +18,14 @@ _session_factory: sessionmaker[Session] | None = None
 def get_engine() -> Engine:
     global _engine, _session_factory
     if _engine is None:
-        url = get_settings().database_url
+        settings = get_settings()
+        url = settings.database_url
         kwargs: dict = {}
         if url.startswith("sqlite"):
-            kwargs["connect_args"] = {"check_same_thread": False}
+            kwargs["connect_args"] = {
+                "check_same_thread": False,
+                "timeout": settings.sqlite_busy_timeout,
+            }
             if url.startswith("sqlite:///"):
                 Path(url.removeprefix("sqlite:///")).parent.mkdir(parents=True, exist_ok=True)
         _engine = create_engine(url, **kwargs)
