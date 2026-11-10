@@ -146,3 +146,4 @@ tr:hover td { background: #fafbfc; }
 .full-row { grid-column: 1 / -1; }
 .checklist .choice { align-items: flex-start; gap: 0.4rem; }
 .checklist .choice input { margin-top: 0.3rem; }
+.inline-form-row { display: inline-block; margin: 0 0.5rem 0.5rem 0; }

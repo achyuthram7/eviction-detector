@@ -212,3 +212,19 @@ def test_queue_filter_returns_htmx_partial(session, client):
     session.commit()
     text = client.get("/staff/queue?status=Invited", headers={"HX-Request": "true"}).text
     assert "EV-000002" in text and "EV-000001" not in text and "<html" not in text
+
+
+def test_import_demo_file_button(session, client):
+    from core.settings import get_settings
+    from tests.factories import csv_bytes
+
+    demo = get_settings().demo_dir
+    demo.mkdir(parents=True, exist_ok=True)
+    (demo / "day1.csv").write_bytes(csv_bytes([row(1), row(2)]))
+    csrf = login(client, "clerk")
+    assert "Import day1.csv" in client.get("/admin/import").text
+    resp = client.post("/admin/import/demo/day1.csv", data={"csrf_token": csrf})
+    assert resp.status_code == 200 and "2</strong> new cases" in resp.text
+    assert (
+        client.post("/admin/import/demo/..%2Fapp.db", data={"csrf_token": csrf}).status_code == 404
+    )

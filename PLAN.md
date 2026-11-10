@@ -1,8 +1,6 @@
 # PLAN — Eviction Settlement Opportunity Detector (Prototype, Team 14)
 
-> Status: **Step 0, waiting for approval.** No code has been written yet.
-> To approve: reply "approved" (accepting every default in §14), or answer the questions in §14 by number.
-> Questions in **§14.A** should be answered (or their defaults accepted) before Milestone 1 starts.
+> Status: **approved with all defaults; milestones 1–6 built.** See §15 for what changed during the build.
 
 ---
 
@@ -455,3 +453,35 @@ Every report opens with the required disclaimer: *"Results use synthetic data. T
 6. Spanish text is drafted by me and marked for review by a qualified translator before any testing with people.
 7. Tokens are stored in plaintext in the prototype DB so letters can be reprinted. The production note says to hash them and print at issuance.
 8. The app's exploration sample is **not** added to the live queue; it's simulated only in `eval-learning`. It's listed in next steps for the silent pilot.
+
+---
+
+## 15. Implementation notes (after the build)
+
+**Decisions applied:** every default in §14 (A1–A6, B1–B7, C1–C8). For A5, the Docker files are
+written but could not be run on the build machine, which has no Docker.
+
+**Changes from the plan:**
+
+1. **A fourth optional export column, `first_hearing_datetime`.** Closed-history exports show
+   only the latest hearing, so continuances leaked into "days to first hearing" (an as-of
+   violation). The importer uses the column when present; otherwise it keeps the first
+   hearing it has seen.
+2. **Stronger placeholder landlord effects in `config/synthetic.yaml`.** This gives the model
+   a learnable signal: a perfect learner reaches AUC ≈ 0.79. These are still placeholders.
+3. **Import buttons for the server's own `data/demo/*.csv`.** Inside Docker the seed
+   regenerates those files for the current date, so uploading a host copy could mismatch the
+   database.
+4. **Learning evaluation changes.**
+   - The holdout covers 52 weeks.
+   - The exploration sample uses a threshold tuned on the cases closed so far, as a live system
+     would.
+   - The report states plainly that week-to-week changes are mostly within their confidence
+     intervals at this docket size.
+5. **Wider reconciliation flags.** Flags also fire when the feed decides a case staff were
+   actively working (Partial response / Both responded), not only Referred.
+6. **Environment on the build machine.**
+   - Windows' long-path limit and Smart App Control blocked compiled wheels in a venv inside
+     the project folder.
+   - The venv was therefore built on Anaconda's Python 3.13 at a short path.
+   - The Docker image uses Python 3.12 with `requirements.lock.txt`.

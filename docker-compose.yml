@@ -1,0 +1,20 @@
+# docker compose up  ->  http://localhost:8000
+# Variables come from your shell or a .env file next to this one (see .env.example).
+services:
+  app:
+    build: .
+    image: eviction-settlement-detector:prototype
+    ports:
+      - "8000:8000"
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-change-me-before-sharing-this-demo}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8000}
+      SEED_ON_START: ${SEED_ON_START:-true}
+      APP_TODAY: ${APP_TODAY:-}
+    volumes:
+      - appdata:/app/data        # database, model, synthetic data (demo CSVs come from the image)
+      - ./reports:/app/reports   # evaluation reports, readable on the host
+    restart: unless-stopped
+
+volumes:
+  appdata:

@@ -1,0 +1,13 @@
+.git
+.venv
+.claude
+.env
+**/__pycache__
+.pytest_cache
+.ruff_cache
+data/app.db
+data/model
+data/synthetic
+data/ground_truth
+reports/*
+!reports/.gitkeep

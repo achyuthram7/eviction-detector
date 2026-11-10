@@ -41,7 +41,28 @@ def import_page(
     request: Request, user: User = Depends(require_roles(*IMPORTERS)), db: Session = Depends(get_db)
 ):
     runs = db.scalars(select(ImportRun).order_by(ImportRun.id.desc()).limit(20)).all()
-    return render(request, "admin/import.html", runs=runs)
+    return render(request, "admin/import.html", runs=runs, demo_files=_demo_files())
+
+
+def _demo_files() -> dict[str, Path]:
+    folder = get_settings().demo_dir
+    return {p.name: p for p in sorted(folder.glob("*.csv"))} if folder.exists() else {}
+
+
+@router.post("/import/demo/{name}", dependencies=[Depends(check_csrf)])
+def import_demo_file(
+    name: str,
+    user: User = Depends(require_roles(*IMPORTERS)),
+    db: Session = Depends(get_db),
+):
+    """Import one of the server's own demo exports (data/demo/*.csv), matched to its seed."""
+    files = _demo_files()
+    if name not in files:
+        raise HTTPException(status_code=404, detail="Not found")
+    run = import_csv(db, files[name], filename=name, user_id=user.id)
+    log(db, user, "import", details={"import_id": run.id, "file": name, "demo": True})
+    db.commit()
+    return RedirectResponse(f"/admin/imports/{run.id}", status_code=303)
 
 
 @router.post("/import", dependencies=[Depends(check_csrf)])
