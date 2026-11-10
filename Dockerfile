@@ -15,8 +15,9 @@ COPY . .
 RUN useradd --create-home --uid 1000 appuser \
     && mkdir -p /app/data /app/reports \
     && chown -R appuser:appuser /app
-USER appuser
 
 EXPOSE 8000
-# First start (no database yet): build synthetic data, run tests and reports, then serve.
+# The entrypoint starts as root only to make mounted data folders writable, then runs
+# everything as appuser (uid 1000). First start (no database yet): build synthetic data,
+# run tests and reports, then serve on $PORT (default 8000).
 ENTRYPOINT ["sh", "/app/docker-entrypoint.sh"]

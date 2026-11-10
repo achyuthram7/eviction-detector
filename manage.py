@@ -56,8 +56,11 @@ def cmd_import(args) -> int:
 
 
 def cmd_test(_args) -> int:
-    reports = ROOT / "reports"
-    reports.mkdir(exist_ok=True)
+    from core.settings import get_settings
+
+    # Same folder the summary reads (REPORTS_DIR when set, e.g. on a hosted disk).
+    reports = get_settings().reports_dir
+    reports.mkdir(parents=True, exist_ok=True)
     return _run([sys.executable, "-m", "pytest", f"--junitxml={reports / 'test_results.xml'}"])
 
 

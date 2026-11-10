@@ -1,0 +1,26 @@
+# Render Blueprint (render.com → New → Blueprint → this repository).
+# Prototype — synthetic data only. Not legal advice.
+#
+# One Docker web service plus a 1 GB disk at /app/data for the SQLite database, model, synthetic
+# data and reports. The first start seeds the demo data, runs the tests and builds the reports
+# before serving (several minutes on this plan). The public address for QR codes comes from
+# Render's RENDER_EXTERNAL_URL unless PUBLIC_BASE_URL is set.
+services:
+  - type: web
+    name: eviction-detector
+    runtime: docker
+    plan: 0.5c-512mb # formerly "starter"
+    region: ohio # closest region to Indiana
+    branch: main
+    healthCheckPath: /
+    disk:
+      name: appdata
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SEED_ON_START
+        value: "true"
+      - key: REPORTS_DIR
+        value: /app/data/reports

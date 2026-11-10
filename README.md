@@ -133,13 +133,14 @@ SIMULATED everywhere it appears. During the testing window, have experts fill in
 
 ## Deployment notes
 
-The image runs on any container host (`docker build .`). One process serves everything on port
-8000, and SQLite lives in `/app/data` (mount a volume there).
+The image runs on any container host (`docker build .`). One process serves everything on
+`$PORT` (default 8000), and SQLite lives in `/app/data` (mount a volume or disk there). The
+container starts as root only to make that folder writable, then runs as `appuser` (uid 1000).
 
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
 | `SECRET_KEY` | **yes** outside a laptop demo | dev value | signs staff session cookies |
-| `PUBLIC_BASE_URL` | yes, for QR codes | `http://localhost:8000` | the address QR codes and party links point to |
+| `PUBLIC_BASE_URL` | yes, for QR codes | `RENDER_EXTERNAL_URL` on Render, else `http://localhost:8000` | the address QR codes and party links point to |
 | `DATABASE_URL` | no | `sqlite:///data/app.db` | SQLAlchemy URL |
 | `APP_TODAY` | no | real date | freeze "today" (YYYY-MM-DD) for a reproducible demo |
 | `SEED_ON_START` | no | `true` | Docker: build demo data on first start |
@@ -148,6 +149,18 @@ The image runs on any container host (`docker build .`). One process serves ever
 There are no runtime network calls: HTMX is vendored, there are no CDNs or web fonts, and a
 Content-Security-Policy restricts pages to their own origin. Put the app behind HTTPS, since
 party links carry a bearer token.
+
+### Render
+
+`render.yaml` is a Render Blueprint: in the Render dashboard choose **New → Blueprint**, pick this
+repository and apply. It creates one Docker web service on the smallest always-on plan with a
+1 GB disk at `/app/data`, generates `SECRET_KEY`, and keeps reports on the disk. The first deploy
+seeds the demo data, runs the tests and builds the reports before the site answers, which takes
+several minutes. Later deploys reuse the disk; to start over, delete the disk's `app.db` (Render
+shell: `rm /app/data/app.db`) and redeploy.
+
+The demo passwords above are public, so anyone with the URL can sign in. Share the address only
+with the team.
 
 ## Repository layout
 
