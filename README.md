@@ -153,11 +153,17 @@ party links carry a bearer token.
 ### Render
 
 `render.yaml` is a Render Blueprint: in the Render dashboard choose **New → Blueprint**, pick this
-repository and apply. It creates one Docker web service on the smallest always-on plan with a
-1 GB disk at `/app/data`, generates `SECRET_KEY`, and keeps reports on the disk. The first deploy
-seeds the demo data, runs the tests and builds the reports before the site answers, which takes
-several minutes. Later deploys reuse the disk; to start over, delete the disk's `app.db` (Render
-shell: `rm /app/data/app.db`) and redeploy.
+repository and apply. It creates one Docker web service on the **free** plan and generates
+`SECRET_KEY`.
+
+- The free plan has no persistent disk, so the image is built with `SEED_AT_BUILD=true`: the demo
+  data, tests and reports are generated during the build (a few minutes), and the app's date is
+  fixed at the build date (`APP_TODAY`, override it in Render if needed).
+- The service sleeps after 15 minutes without visits; the next visit takes about a minute to
+  wake it. Every wake-up or restart returns to the clean demo, so **anything entered on the site
+  (intakes, statuses, imports) is lost**. Run usability sessions on a local copy, or switch to a
+  paid plan with a disk (see the comment in `render.yaml`).
+- Each push to `main` rebuilds and redeploys, which also refreshes the demo to the new date.
 
 The demo passwords above are public, so anyone with the URL can sign in. Share the address only
 with the team.

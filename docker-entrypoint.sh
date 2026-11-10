@@ -12,6 +12,12 @@ fi
 # Hosts such as Render provide the public address and port; local Docker uses the defaults.
 export PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-${RENDER_EXTERNAL_URL:-http://localhost:8000}}"
 PORT="${PORT:-8000}"
+# Demo data built into the image (SEED_AT_BUILD) stays on the date it was generated for.
+if [ -z "${APP_TODAY:-}" ] && [ -f "${DATA_DIR:-/app/data}/.seed_date" ]; then
+  APP_TODAY="$(cat "${DATA_DIR:-/app/data}/.seed_date")"
+  export APP_TODAY
+  echo "Demo data built into the image: the app's date is fixed at $APP_TODAY"
+fi
 
 # Reports go to the bind-mounted ./reports when the container user can write there.
 if [ -z "${REPORTS_DIR:-}" ] && ! touch /app/reports/.write-test 2>/dev/null; then
