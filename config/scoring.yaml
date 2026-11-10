@@ -66,3 +66,17 @@ reasons:
   assistance_pending: "the tenant has rental assistance applied for or pending"
   fee_waiver_offered: "the landlord is willing to waive late or attorney fees"
   moveout_extension_matches_tenant: "the landlord will extend the move-out date and the tenant would move with more time"
+
+# Evaluation settings (eval/ scripts only; the app never reads these).
+evaluation:
+  seed: 11
+  bootstrap: 1000
+  learning:
+    warm_start_weeks: 6        # the tool launches with this many weeks of data
+    sim_weeks: 12              # simulated live feed, retrained weekly
+    holdout_gap_weeks: 8       # gap between the simulation and the fixed holdout
+    holdout_weeks: 52          # fixed holdout window (split once into halves A and B)
+    exploration_share: 0.075   # 5-10% of below-threshold cases get outreach anyway
+    bootstrap: 500
+    extended_sizes: [100, 200, 400, 800, 1600, 3200]
+    extended_repeats: 10

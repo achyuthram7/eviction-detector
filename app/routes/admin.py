@@ -168,7 +168,12 @@ def report_file(path: str, user: User = Depends(require_roles(ADMIN))):
         or target.suffix not in (".png", ".md", ".csv", ".html")
     ):
         raise HTTPException(status_code=404, detail="Not found")
-    return FileResponse(target)
+    response = FileResponse(target)
+    if target.suffix == ".html":  # the printable expert packet carries its own inline styles
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'"
+        )
+    return response
 
 
 @router.get("/users")

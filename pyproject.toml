@@ -14,6 +14,10 @@ select = ["E", "F", "I", "B", "UP", "W"]
 # B008: FastAPI's Depends()/Form() in argument defaults is the documented pattern.
 ignore = ["B008"]
 
+[tool.ruff.lint.per-file-ignores]
+# Report templates hold long Markdown table rows inside f-strings.
+"eval/*.py" = ["E501"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["app", "core", "synth", "eval"]
 
