@@ -254,6 +254,7 @@ def test_landlord_standing_policy_and_new_filing_policy_applied_automatically(se
             "min_to_dismiss_pct": "90",
             "accepts_plan": "yes",
             "max_plan_months": "5",
+            "extend_moveout": "no",
             "goal": "rent",
             "willing_mediator": "yes",
             "timing_id": timing_id,

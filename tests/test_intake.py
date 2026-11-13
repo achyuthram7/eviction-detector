@@ -8,7 +8,7 @@ from core.constants import DISCLOSURE_TEXT, TENANT
 from core.intake import parse_tenant_form, submit_fallback
 from core.models import Case, FallbackSubmission, IntakeTiming, TenantResponse
 from core.tokens import party_url, qr_png
-from tests.factories import import_rows, row, tenant_form
+from tests.factories import import_rows, landlord_form, row, tenant_form
 
 
 def _tenant(session, case_number="97K01-2603-EV-000001"):
@@ -110,10 +110,10 @@ def test_landlord_fallback_always_goes_to_review(session, client):
     client.post(
         "/find",
         data={
+            **landlord_form(min_to_dismiss="100"),
             "role": "landlord",
             "case_number": "97K01-2603-EV-000001",
             "last_name": "Rentals",
-            "min_to_dismiss": "100",
         },
     )
     assert session.scalar(select(FallbackSubmission)).status == "review"

@@ -4,29 +4,42 @@
 {% block content %}
 {# This page never shows case details, whatever is entered. #}
 {% with heading=t('find_title'), intro=t('find_intro') %}{% include "public/_intake_head.html" %}{% endwith %}
-<p class="role-switch">{{ t('q_role') }}:
-  {% if role == 'tenant' %}<strong>{{ t('role_tenant') }}</strong> · <a href="/find?role=landlord&lang={{ lang }}">{{ t('role_landlord') }}</a>
-  {% else %}<a href="/find?role=tenant&lang={{ lang }}">{{ t('role_tenant') }}</a> · <strong>{{ t('role_landlord') }}</strong>{% endif %}
-</p>
-<form method="post" action="/find" class="intake" novalidate>
+<form method="post" action="/find" class="intake" data-required-msg="{{ t('err_required') }}">
   <input type="hidden" name="timing_id" value="{{ timing_id or '' }}">
   <input type="hidden" name="lang" value="{{ lang }}">
-  <input type="hidden" name="role" value="{{ role }}">
   <section class="form-section">
-    <div class="field">
-      <label for="f-case_number">{{ t('q_case_number') }}</label>
-      <input id="f-case_number" name="case_number" autocomplete="off" maxlength="40" value="{{ entered.get('case_number', '') }}" placeholder="97K01-2611-EV-000123">
+    <div class="field role-select">
+      <label for="f-role">{{ t('q_role') }}</label>
+      <select id="f-role" name="role">
+        <option value="tenant"{% if role == 'tenant' %} selected{% endif %}>{{ t('role_tenant') }}</option>
+        <option value="landlord"{% if role == 'landlord' %} selected{% endif %}>{{ t('role_landlord') }}</option>
+      </select>
+      {# Without JavaScript the questions can't switch in place, so this button reloads them. #}
+      <noscript><button type="submit" name="switch_role" value="1" class="btn small" formnovalidate>{{ t('show_questions') }}</button></noscript>
     </div>
-    <div class="field">
+    <div class="field{% if errors.get('case_number') %} has-error{% endif %}">
+      <label for="f-case_number">{{ t('q_case_number') }}</label>
+      <input id="f-case_number" name="case_number" autocomplete="off" maxlength="40" value="{{ entered.get('case_number', '') }}" placeholder="97K01-2611-EV-000123" required{% if errors.get('case_number') %} aria-invalid="true" aria-describedby="err-case_number"{% endif %}>
+      {% if errors.get('case_number') %}<p class="error" id="err-case_number">{{ t(errors.get('case_number')) }}</p>{% endif %}
+    </div>
+    <div class="field{% if errors.get('last_name') %} has-error{% endif %}">
       <label for="f-last_name">{{ t('q_last_name') }}</label>
-      <input id="f-last_name" name="last_name" autocomplete="family-name" maxlength="80" value="{{ entered.get('last_name', '') }}">
+      <input id="f-last_name" name="last_name" autocomplete="family-name" maxlength="80" value="{{ entered.get('last_name', '') }}" required{% if errors.get('last_name') %} aria-invalid="true" aria-describedby="err-last_name"{% endif %}>
+      {% if errors.get('last_name') %}<p class="error" id="err-last_name">{{ t(errors.get('last_name')) }}</p>{% endif %}
     </div>
   </section>
-  {% if role == 'tenant' %}
-    {% include "public/_tenant_fields.html" %}
-  {% else %}
-    {% with policy_mode=False %}{% include "public/_landlord_fields.html" %}{% endwith %}
-  {% endif %}
+  {# Both question sets are on the page; the one for the other role is hidden and disabled,
+     so it is neither checked nor sent. The dropdown swaps them without reloading. #}
+  <fieldset class="role-fields" data-show-when="role=tenant"{% if role != 'tenant' %} hidden disabled{% endif %}>
+    {% with values=(values if role == 'tenant' else {}), errors=(errors if role == 'tenant' else {}), unsure=(unsure if role == 'tenant' else ()) %}
+      {% include "public/_tenant_fields.html" %}
+    {% endwith %}
+  </fieldset>
+  <fieldset class="role-fields" data-show-when="role=landlord"{% if role != 'landlord' %} hidden disabled{% endif %}>
+    {% with values=(values if role == 'landlord' else {}), errors=(errors if role == 'landlord' else {}), unsure=(unsure if role == 'landlord' else ()), policy_mode=False %}
+      {% include "public/_landlord_fields.html" %}
+    {% endwith %}
+  </fieldset>
   <button type="submit" class="btn primary">{{ t('submit') }}</button>
 </form>
 {% endblock %}

@@ -9,6 +9,8 @@ from pathlib import Path
 
 import yaml
 
+from core.constants import ROLES
+
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_DIR = ROOT / "config"
 
@@ -27,6 +29,7 @@ class Settings:
     sqlite_busy_timeout: float
     secret_key: str
     public_base_url: str
+    active_staff_roles: frozenset[str]
     app: dict
     scoring: dict
     synthetic: dict
@@ -56,6 +59,9 @@ def get_settings() -> Settings:
     ):
         # Relative SQLite paths are relative to the project root, not the current directory.
         db_url = f"sqlite:///{(ROOT / db_url.removeprefix('sqlite:///')).as_posix()}"
+    app = load_yaml("app.yaml")
+    roles_env = os.environ.get("ACTIVE_STAFF_ROLES")
+    roles = roles_env.split(",") if roles_env else app.get("active_staff_roles") or ROLES
     return Settings(
         root=ROOT,
         data_dir=data_dir,
@@ -66,7 +72,9 @@ def get_settings() -> Settings:
         sqlite_busy_timeout=float(os.environ.get("SQLITE_BUSY_TIMEOUT") or 30),
         secret_key=os.environ.get("SECRET_KEY") or "dev-only-secret-change-me",
         public_base_url=(os.environ.get("PUBLIC_BASE_URL") or "http://localhost:8000").rstrip("/"),
-        app=load_yaml("app.yaml"),
+        # Staff roles allowed to sign in; the others are paused (config/app.yaml).
+        active_staff_roles=frozenset(r.strip().lower() for r in roles if r.strip()) & set(ROLES),
+        app=app,
         scoring=load_yaml("scoring.yaml"),
         synthetic=load_yaml("synthetic.yaml"),
         diversion=load_yaml("diversion_checklist.yaml"),

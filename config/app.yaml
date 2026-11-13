@@ -7,6 +7,11 @@ case_type: EV
 # Small-claims cap. A claim equal to (or above) this is treated as "amount unknown".
 claim_cap: 10000
 
+# Staff roles that can sign in. TEMPORARY (November 2026): judge only, while the judge view is
+# tested. To turn the other roles back on, list all four: [clerk, facilitator, judge, admin].
+# The ACTIVE_STAFF_ROLES environment variable (comma-separated) overrides this list.
+active_staff_roles: [judge]
+
 # Restriction: a case is restricted when the feed sets confidential_flag or sealed_flag.
 # Conservative option (Q B2): also restrict on these events before the flag arrives,
 # e.g. [diversion_stay, dismissed]. Default: flags only, as the brief says.

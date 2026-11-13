@@ -17,6 +17,8 @@ def _isolated_env(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{(tmp_path / 'test.db').as_posix()}")
     monkeypatch.setenv("APP_TODAY", TODAY)
     monkeypatch.setenv("SECRET_KEY", "test-secret")
+    # Tests cover every role, whatever config/app.yaml currently pauses.
+    monkeypatch.setenv("ACTIVE_STAFF_ROLES", "clerk,facilitator,judge,admin")
     reset_settings()
     reset_engine()
     init_db(drop=True)

@@ -1,19 +1,23 @@
 {% import "public/_macros.html" as m %}
+{# Required questions match core/intake.py (LANDLORD_REQUIRED / POLICY_REQUIRED); each offers
+   "Not sure" or a similar answer (LANDLORD_NOT_SURE / POLICY_NOT_SURE). Anything marked
+   "optional" can be left blank. #}
+{% set u = unsure or () %}
 <section class="form-section">
   <h2>{{ t('section_money') }}</h2>
   {% if not policy_mode %}
-  {{ m.money('amount_owed_now', t('q_amount_owed'), values, errors, t) }}
+  {{ m.money('amount_owed_now', t('q_amount_owed'), values, errors, t, req=True, not_sure=True, u=u) }}
   {{ m.money('fees_included', t('q_fees_included') ~ ' (' ~ t('optional') ~ ')', values, errors, t) }}
-  {{ m.money('min_to_dismiss', t('q_min_dismiss'), values, errors, t) }}
+  {{ m.money('min_to_dismiss', t('q_min_dismiss'), values, errors, t, req=True, not_sure=True, u=u) }}
   {% else %}
-  {{ m.number('min_to_dismiss_pct', t('q_min_dismiss_pct'), values, errors, t, min=1, max=100) }}
+  {{ m.number('min_to_dismiss_pct', t('q_min_dismiss_pct'), values, errors, t, min=1, max=100, req=True, not_sure=True, u=u) }}
   {% endif %}
-  {{ m.yesno('accepts_plan', t('q_accepts_plan'), values, t) }}
+  {{ m.yesno('accepts_plan', t('q_accepts_plan'), values, t, errors, req=True, not_sure=True, u=u) }}
   <div data-show-when="accepts_plan=yes">
-    {{ m.number('max_plan_months', t('q_max_months'), values, errors, t, min=1, max=24) }}
+    {{ m.number('max_plan_months', t('q_max_months'), values, errors, t, min=1, max=24, req='shown', not_sure=True, u=u) }}
   </div>
   <fieldset class="field">
-    <legend>{{ t('q_waive') }}</legend>
+    <legend>{{ t('q_waive') }} ({{ t('optional') }})</legend>
     <div class="choices">
       {{ m.check('waive_late_fees', t('opt_waive_late'), values) }}
       {{ m.check('waive_attorney_fees', t('opt_waive_atty'), values) }}
@@ -22,10 +26,10 @@
 </section>
 <section class="form-section">
   <h2>{{ t('section_home') }}</h2>
-  {{ m.yesno('extend_moveout', t('q_extend'), values, t) }}
+  {{ m.yesno('extend_moveout', t('q_extend'), values, t, errors, req=True, not_sure=True, u=u) }}
   <div data-show-when="extend_moveout=yes">
-    {{ m.number('extend_moveout_days', t('q_extend_days'), values, errors, t, min=1, max=180) }}
+    {{ m.number('extend_moveout_days', t('q_extend_days'), values, errors, t, min=1, max=180, req='shown', not_sure=True, u=u) }}
   </div>
-  {{ m.radios('goal', t('q_goal'), [('rent', t('opt_rent')), ('possession', t('opt_possession')), ('both', t('opt_both'))], values) }}
-  {{ m.radios('willing_mediator', t('q_ll_mediator'), [('yes', t('yes')), ('no', t('no')), ('unsure', t('unsure'))], values) }}
+  {{ m.radios('goal', t('q_goal'), [('rent', t('opt_rent')), ('possession', t('opt_possession')), ('both', t('opt_both')), ('unsure', t('unsure'))], values, errors, t, req=True, u=u) }}
+  {{ m.radios('willing_mediator', t('q_ll_mediator'), [('yes', t('yes')), ('no', t('no')), ('unsure', t('unsure'))], values, errors, t, req=True) }}
 </section>

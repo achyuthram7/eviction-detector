@@ -22,6 +22,48 @@ def test_staff_pages_require_sign_in(client):
     assert resp.status_code == 303 and resp.headers["location"].startswith("/login")
 
 
+def test_paused_roles_cannot_sign_in(client, monkeypatch):
+    from core.db import session_scope
+    from core.settings import reset_settings
+    from core.users import DEMO_USERS, create_demo_users
+
+    with session_scope() as s:
+        create_demo_users(s)
+    monkeypatch.setenv("ACTIVE_STAFF_ROLES", "judge")
+    reset_settings()
+    passwords = {u: p for u, _d, _r, p in DEMO_USERS}
+    page = client.get("/login").text
+    assert "Testing mode: only judge sign-in is turned on." in page
+    for name in ("clerk", "facilitator", "admin"):
+        resp = client.post("/login", data={"username": name, "password": passwords[name]})
+        assert resp.status_code == 403 and "paused" in resp.text, name
+    resp = client.post("/login", data={"username": "clerk", "password": "wrong"})
+    assert resp.status_code == 401  # a wrong password never reveals the pause
+    resp = client.post("/login", data={"username": "judge", "password": passwords["judge"]})
+    assert resp.status_code == 200 and "Demo Judge" in resp.text
+
+
+def test_paused_role_is_signed_out_of_an_open_session(client, monkeypatch):
+    from core.settings import reset_settings
+
+    login(client, "admin")
+    assert client.get("/staff/queue").status_code == 200
+    monkeypatch.setenv("ACTIVE_STAFF_ROLES", "judge")
+    reset_settings()
+    resp = client.get("/staff/queue", follow_redirects=False)
+    assert resp.status_code == 303 and resp.headers["location"].startswith("/login")
+
+
+def test_active_roles_come_from_app_config_when_no_override(monkeypatch):
+    from core.settings import get_settings, load_yaml, reset_settings
+
+    monkeypatch.delenv("ACTIVE_STAFF_ROLES", raising=False)
+    reset_settings()
+    configured = load_yaml("app.yaml").get("active_staff_roles")
+    expected = set(configured) if configured else {"clerk", "facilitator", "judge", "admin"}
+    assert get_settings().active_staff_roles == expected
+
+
 def test_wrong_password_rejected(client):
     login(client, "clerk")  # creates the demo users
     client.post("/logout")

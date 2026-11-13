@@ -4,7 +4,7 @@
 {% block content %}
 {% with heading=t('title_tenant'), intro=t('intro_tenant') %}{% include "public/_intake_head.html" %}{% endwith %}
 <p class="case-ref">{{ t('case_label') }} {{ case.case_number }}{% if case.hearing_datetime %} · {{ t('hearing_label') }}: {{ case.hearing_datetime.strftime('%Y-%m-%d %H:%M') }}{% endif %}</p>
-<form method="post" action="{{ action }}" class="intake" novalidate>
+<form method="post" action="{{ action }}" class="intake" data-required-msg="{{ t('err_required') }}">
   <input type="hidden" name="timing_id" value="{{ timing_id or '' }}">
   <input type="hidden" name="lang" value="{{ lang }}">
   {% include "public/_tenant_fields.html" %}

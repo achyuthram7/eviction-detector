@@ -34,6 +34,7 @@ from core.intake import (
     save_policy,
     save_tenant_response,
     submit_fallback,
+    unsure_answers,
 )
 from core.models import LandlordPolicy
 
@@ -72,13 +73,14 @@ def index(request: Request):
 # --- token intake -----------------------------------------------------------------------------
 
 
-def _form_context(party, case, lang, values, errors, timing_id, existing):
+def _form_context(party, case, lang, values, errors, timing_id, existing, unsure=frozenset()):
     return dict(
         lang=lang,
         party=party,
         case=case,
         values=values,
         errors=errors,
+        unsure=unsure,
         timing_id=timing_id,
         existing=existing,
         action=f"/r/{party.token}",
@@ -107,8 +109,11 @@ def intake_form(
         if existing is not None and existing.source == "policy":
             existing = None  # a case-specific form starts blank; the policy still applies
         values, template = values_from(existing, LANDLORD_FIELDS), "public/intake_landlord.html"
+    unsure = unsure_answers(values, party.role)  # re-opened answers show "Not sure" again
     return render(
-        request, template, **_form_context(party, case, lang, values, {}, timing.id, existing)
+        request,
+        template,
+        **_form_context(party, case, lang, values, {}, timing.id, existing, unsure),
     )
 
 
@@ -128,7 +133,14 @@ async def intake_submit(request: Request, token: str, db: Session = Depends(get_
             "public/intake_tenant.html" if party.role == TENANT else "public/intake_landlord.html"
         )
         ctx = _form_context(
-            party, case, lang, parsed.values, parsed.errors, form.get("timing_id"), None
+            party,
+            case,
+            lang,
+            parsed.values,
+            parsed.errors,
+            form.get("timing_id"),
+            None,
+            parsed.unsure,
         )
         return render(request, template, status_code=422, **ctx)
     timing = close_timing(db, form.get("timing_id"), party=party)
@@ -189,6 +201,7 @@ def find_form(
         role=role,
         values={},
         errors={},
+        unsure=set(),
         entered={},
         timing_id=timing.id,
         toggle_url=f"/find?lang={t('lang_toggle_code')}&role={role}",
@@ -201,17 +214,25 @@ async def find_submit(request: Request, db: Session = Depends(get_db)):
     lang = pick_lang(form.get("lang"))
     role = form.get("role") if form.get("role") in (TENANT, LANDLORD) else TENANT
     parsed = parse_tenant_form(form) if role == TENANT else parse_landlord_form(form)
-    entered = {"case_number": form.get("case_number", ""), "last_name": form.get("last_name", "")}
-    if not parsed.ok:
+    entered = {
+        "case_number": (form.get("case_number") or "").strip(),
+        "last_name": (form.get("last_name") or "").strip(),
+    }
+    switching = bool(form.get("switch_role"))  # no-JavaScript role switch: just reload
+    for name, value in entered.items():
+        if not value:
+            parsed.errors[name] = "err_required"
+    if switching or not parsed.ok:
         t = translator(lang)
         return render(
             request,
             "public/find.html",
-            status_code=422,
+            status_code=200 if switching else 422,
             lang=lang,
             role=role,
             values=parsed.values,
-            errors=parsed.errors,
+            errors={} if switching else parsed.errors,
+            unsure=parsed.unsure,
             entered=entered,
             timing_id=form.get("timing_id"),
             toggle_url=f"/find?lang={t('lang_toggle_code')}&role={role}",
@@ -255,14 +276,16 @@ def policy_form(
     )
     db.commit()
     policy = db.get(LandlordPolicy, plaintiff.policy.id) if plaintiff.policy else None
+    values = values_from(policy, POLICY_FIELDS)
     t = translator(lang)
     return render(
         request,
         "public/policy.html",
         lang=lang,
         plaintiff=plaintiff,
-        values=values_from(policy, POLICY_FIELDS),
+        values=values,
         errors={},
+        unsure=unsure_answers(values, "policy"),
         timing_id=timing.id,
         existing=policy,
         action=f"/policy/{token}",
@@ -288,6 +311,7 @@ async def policy_submit(request: Request, token: str, db: Session = Depends(get_
             plaintiff=plaintiff,
             values=parsed.values,
             errors=parsed.errors,
+            unsure=parsed.unsure,
             timing_id=form.get("timing_id"),
             existing=None,
             action=f"/policy/{token}",

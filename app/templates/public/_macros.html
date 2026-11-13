@@ -1,45 +1,72 @@
-{# Form-field macros for the party intakes. Values come in `v`, error keys in `e`. #}
+{# Form-field macros for the party intakes. Values come in `v`, error keys in `e`, and the
+   questions answered "Not sure" in `u`.
+   req=True marks a required question. req='shown' marks a follow-up question that is required
+   only while it is shown (app.js turns data-required into required and disables it when hidden;
+   the server checks it either way).
+   not_sure=True adds a "Not sure" answer: a tick box next to an amount, or a third choice. An
+   amount with a tick box uses data-required, so ticking "Not sure" never blocks the form. #}
 
-{% macro money(name, label, v, e, t) -%}
+{% macro req_attr(req) -%}
+{%- if req == 'shown' %} data-required{% elif req %} required{% endif -%}
+{%- endmacro %}
+
+{% macro err_attrs(name, e) -%}
+{%- if e.get(name) %} aria-invalid="true" aria-describedby="err-{{ name }}"{% endif -%}
+{%- endmacro %}
+
+{% macro not_sure_box(name, u, t) -%}
+<label class="choice not-sure"><input type="checkbox" name="{{ name }}_unsure" value="on" data-unsure-for="f-{{ name }}"{% if name in u %} checked{% endif %}> {{ t('unsure') }}</label>
+{%- endmacro %}
+
+{% macro err_text(name, e, t) -%}
+{% if e.get(name) %}<p class="error" id="err-{{ name }}">{{ t(e.get(name)) }}</p>{% endif %}
+{%- endmacro %}
+
+{% macro money(name, label, v, e, t, req=False, not_sure=False, u=()) -%}
 <div class="field{% if e.get(name) %} has-error{% endif %}">
   <label for="f-{{ name }}">{{ label }}</label>
   <div class="money-input">
     <span aria-hidden="true">$</span>
     <input id="f-{{ name }}" name="{{ name }}" inputmode="decimal" autocomplete="off"
            placeholder="{{ t('dollars_hint') }}"
-           value="{% if v.get(name) is not none %}{{ ('%.2f' | format(v.get(name))).replace('.00', '') }}{% endif %}">
+           value="{% if v.get(name) is not none %}{{ ('%.2f' | format(v.get(name))).replace('.00', '') }}{% endif %}"{{ req_attr('shown' if (req and not_sure) else req) }}{{ err_attrs(name, e) }}>
   </div>
-  {% if e.get(name) %}<p class="error">{{ t(e.get(name)) }}</p>{% endif %}
+  {% if not_sure %}{{ not_sure_box(name, u, t) }}{% endif %}
+  {{ err_text(name, e, t) }}
 </div>
 {%- endmacro %}
 
-{% macro number(name, label, v, e, t, min=1, max=365) -%}
+{% macro number(name, label, v, e, t, min=1, max=365, req=False, not_sure=False, u=()) -%}
 <div class="field{% if e.get(name) %} has-error{% endif %}">
   <label for="f-{{ name }}">{{ label }}</label>
   <input id="f-{{ name }}" name="{{ name }}" type="number" inputmode="numeric" min="{{ min }}" max="{{ max }}"
-         value="{{ v.get(name) if v.get(name) is not none else '' }}">
-  {% if e.get(name) %}<p class="error">{{ t(e.get(name)) }}</p>{% endif %}
+         value="{{ v.get(name) if v.get(name) is not none else '' }}"{{ req_attr('shown' if (req and not_sure) else req) }}{{ err_attrs(name, e) }}>
+  {% if not_sure %}{{ not_sure_box(name, u, t) }}{% endif %}
+  {{ err_text(name, e, t) }}
 </div>
 {%- endmacro %}
 
-{% macro radios(name, label, options, v) -%}
-<fieldset class="field">
+{% macro radios(name, label, options, v, e={}, t=None, req=False, u=()) -%}
+<fieldset class="field{% if e.get(name) %} has-error{% endif %}"{% if e.get(name) %} aria-describedby="err-{{ name }}"{% endif %}>
   <legend>{{ label }}</legend>
   <div class="choices">
   {% for value, text in options %}
-    <label class="choice"><input type="radio" name="{{ name }}" value="{{ value }}"{% if v.get(name) == value %} checked{% endif %}> {{ text }}</label>
+    <label class="choice"><input type="radio" name="{{ name }}" value="{{ value }}"{% if v.get(name) == value or (value == 'unsure' and name in u) %} checked{% endif %}{{ req_attr(req) }}> {{ text }}</label>
   {% endfor %}
   </div>
+  {{ err_text(name, e, t) }}
 </fieldset>
 {%- endmacro %}
 
-{% macro yesno(name, label, v, t) -%}
-<fieldset class="field">
+{% macro yesno(name, label, v, t, e={}, req=False, not_sure=False, u=()) -%}
+<fieldset class="field{% if e.get(name) %} has-error{% endif %}"{% if e.get(name) %} aria-describedby="err-{{ name }}"{% endif %}>
   <legend>{{ label }}</legend>
   <div class="choices">
-    <label class="choice"><input type="radio" name="{{ name }}" value="yes"{% if v.get(name) is sameas true %} checked{% endif %}> {{ t('yes') }}</label>
-    <label class="choice"><input type="radio" name="{{ name }}" value="no"{% if v.get(name) is sameas false %} checked{% endif %}> {{ t('no') }}</label>
+    <label class="choice"><input type="radio" name="{{ name }}" value="yes"{% if v.get(name) is sameas true %} checked{% endif %}{{ req_attr(req) }}> {{ t('yes') }}</label>
+    <label class="choice"><input type="radio" name="{{ name }}" value="no"{% if v.get(name) is sameas false %} checked{% endif %}{{ req_attr(req) }}> {{ t('no') }}</label>
+    {% if not_sure %}<label class="choice"><input type="radio" name="{{ name }}" value="unsure"{% if name in u %} checked{% endif %}{{ req_attr(req) }}> {{ t('unsure') }}</label>{% endif %}
   </div>
+  {{ err_text(name, e, t) }}
 </fieldset>
 {%- endmacro %}
 

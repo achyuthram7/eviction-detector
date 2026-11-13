@@ -74,6 +74,64 @@ POLICY_FIELDS = (
     "goal",
     "willing_mediator",
 )
+# Questions a party must answer before the form is saved. Everything else is labelled
+# "optional" on the form. Checkbox groups stay optional: leaving them blank means "no".
+# Follow-ups are required only when they apply (moving out, a payment plan, more time).
+TENANT_REQUIRED = (
+    "believed_owed",
+    "pay_30d",
+    "pay_monthly",
+    "assistance_status",
+    "wants",
+    "legal_aid",
+    "willing_mediator",
+    "preferred_language",
+)
+LANDLORD_REQUIRED = (
+    "amount_owed_now",
+    "min_to_dismiss",
+    "accepts_plan",
+    "extend_moveout",
+    "goal",
+    "willing_mediator",
+)
+POLICY_REQUIRED = (
+    "min_to_dismiss_pct",
+    "accepts_plan",
+    "extend_moveout",
+    "goal",
+    "willing_mediator",
+)
+# Required questions that offer a "Not sure" answer, so a party who doesn't know can still go
+# on. "Not sure" is saved as unknown (None), which the scoring already treats as no information.
+# The mediator question stores its own "unsure" value; preferred language offers "Other".
+TENANT_NOT_SURE = (
+    "believed_owed",
+    "pay_30d",
+    "pay_monthly",
+    "assistance_status",
+    "wants",
+    "move_time_days",
+    "legal_aid",
+)
+LANDLORD_NOT_SURE = (
+    "amount_owed_now",
+    "min_to_dismiss",
+    "accepts_plan",
+    "max_plan_months",
+    "extend_moveout",
+    "extend_moveout_days",
+    "goal",
+)
+POLICY_NOT_SURE = (
+    "min_to_dismiss_pct",
+    "accepts_plan",
+    "max_plan_months",
+    "extend_moveout",
+    "extend_moveout_days",
+    "goal",
+)
+NOT_SURE = "unsure"
 ASSISTANCE = ("none", "applied", "pending", "approved")
 WANTS = ("stay", "move")
 WILLING = ("yes", "no", "unsure")
@@ -85,6 +143,7 @@ LANGUAGES = ("English", "Spanish", "Other")
 class FormResult:
     values: dict = field(default_factory=dict)
     errors: dict[str, str] = field(default_factory=dict)
+    unsure: set[str] = field(default_factory=set)  # questions answered "Not sure"
 
     @property
     def ok(self) -> bool:
@@ -145,6 +204,58 @@ def _text(form: Mapping, name: str, res: FormResult, limit: int) -> None:
     res.values[name] = raw[:limit] or None
 
 
+def _not_sure(form: Mapping, res: FormResult, names: tuple[str, ...]) -> None:
+    """Record "Not sure" answers: a choice of "unsure", or a ticked "<name>_unsure" box next to
+    an amount. They are saved as unknown (None); a number typed next to a ticked box is ignored."""
+    for name in names:
+        choice = (form.get(name) or "").strip().lower()
+        box = (form.get(f"{name}_unsure") or "").strip().lower()
+        if choice == NOT_SURE or box in ("on", "1", "true", "yes"):
+            res.values[name] = None
+            res.errors.pop(name, None)
+            res.unsure.add(name)
+
+
+def _require(res: FormResult, *names: str) -> None:
+    """Flag required questions with no answer. 0, "No" and "Not sure" are all answers."""
+    for name in names:
+        if name in res.errors or name in res.unsure:
+            continue
+        if res.values.get(name) is None:
+            res.errors[name] = "err_required"
+
+
+def _landlord_followups(res: FormResult) -> None:
+    """Months and days are asked only after a "Yes"; otherwise they are dropped."""
+    for gate, follow_up in (
+        ("accepts_plan", "max_plan_months"),
+        ("extend_moveout", "extend_moveout_days"),
+    ):
+        if res.values.get(gate) is True:
+            _require(res, follow_up)
+        else:
+            res.values[follow_up] = None
+            res.unsure.discard(follow_up)
+
+
+def unsure_answers(values: dict, kind: str) -> set[str]:
+    """Which questions on a saved form were answered "Not sure". New answers can't leave a
+    required question blank, so a saved blank there means "Not sure"; the form shows it so."""
+    if not values:
+        return set()
+    allowed = {
+        "tenant": TENANT_NOT_SURE,
+        "landlord": LANDLORD_NOT_SURE,
+        "policy": POLICY_NOT_SURE,
+    }[kind]
+    gates = {
+        "move_time_days": values.get("wants") == "move",
+        "max_plan_months": values.get("accepts_plan") is True,
+        "extend_moveout_days": values.get("extend_moveout") is True,
+    }
+    return {name for name in allowed if values.get(name) is None and gates.get(name, True)}
+
+
 def parse_tenant_form(form: Mapping) -> FormResult:
     res = FormResult()
     for name in ("believed_owed", "pay_30d", "pay_monthly", "assistance_amount"):
@@ -166,8 +277,13 @@ def parse_tenant_form(form: Mapping) -> FormResult:
     _choice(form, "willing_mediator", res, WILLING)
     _text(form, "contact_phone", res, 40)
     _choice(form, "preferred_language", res, LANGUAGES)
-    if res.values.get("wants") != "move":
+    _not_sure(form, res, TENANT_NOT_SURE)
+    _require(res, *TENANT_REQUIRED)
+    if res.values.get("wants") == "move":
+        _require(res, "move_time_days")
+    else:
         res.values["move_time_days"] = None
+        res.unsure.discard("move_time_days")
     return res
 
 
@@ -183,10 +299,9 @@ def parse_landlord_form(form: Mapping) -> FormResult:
     _int(form, "extend_moveout_days", res, 1, 180)
     _choice(form, "goal", res, GOALS)
     _choice(form, "willing_mediator", res, WILLING)
-    if res.values.get("accepts_plan") is False:
-        res.values["max_plan_months"] = None
-    if res.values.get("extend_moveout") is False:
-        res.values["extend_moveout_days"] = None
+    _not_sure(form, res, LANDLORD_NOT_SURE)
+    _require(res, *LANDLORD_REQUIRED)
+    _landlord_followups(res)
     return res
 
 
@@ -203,10 +318,9 @@ def parse_policy_form(form: Mapping) -> FormResult:
     _int(form, "extend_moveout_days", res, 1, 180)
     _choice(form, "goal", res, GOALS)
     _choice(form, "willing_mediator", res, WILLING)
-    if res.values.get("accepts_plan") is False:
-        res.values["max_plan_months"] = None
-    if res.values.get("extend_moveout") is False:
-        res.values["extend_moveout_days"] = None
+    _not_sure(form, res, POLICY_NOT_SURE)
+    _require(res, *POLICY_REQUIRED)
+    _landlord_followups(res)
     return res
 
 

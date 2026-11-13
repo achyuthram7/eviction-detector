@@ -4,7 +4,7 @@
 {% block content %}
 {% with heading=t('title_policy'), intro=t('intro_policy') %}{% include "public/_intake_head.html" %}{% endwith %}
 <p class="case-ref">{{ plaintiff.label }}</p>
-<form method="post" action="{{ action }}" class="intake" novalidate>
+<form method="post" action="{{ action }}" class="intake" data-required-msg="{{ t('err_required') }}">
   <input type="hidden" name="timing_id" value="{{ timing_id or '' }}">
   <input type="hidden" name="lang" value="{{ lang }}">
   {% with policy_mode=True %}{% include "public/_landlord_fields.html" %}{% endwith %}

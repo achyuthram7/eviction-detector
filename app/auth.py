@@ -14,10 +14,32 @@ from sqlalchemy.orm import Session
 from app.deps import get_db
 from app.templating import render
 from core.audit import log
+from core.constants import ROLES
 from core.models import User
 from core.security import verify_password
+from core.settings import get_settings
 
 router = APIRouter()
+
+
+def role_is_active(role: str) -> bool:
+    """False while a role is paused in config/app.yaml (active_staff_roles)."""
+    return role in get_settings().active_staff_roles
+
+
+def _paused_note() -> str | None:
+    active = [r for r in ROLES if role_is_active(r)]
+    paused = [r for r in ROLES if not role_is_active(r)]
+    if not paused:
+        return None
+    return (
+        f"Testing mode: only {_names(active) or 'no'} sign-in is turned on. "
+        f"The {_names(paused)} accounts are paused."
+    )
+
+
+def _names(roles: list[str]) -> str:
+    return roles[0] if len(roles) == 1 else ", ".join(roles[:-1]) + " and " + roles[-1]
 
 
 def _redirect_to_login(request: Request) -> HTTPException:
@@ -28,7 +50,8 @@ def _redirect_to_login(request: Request) -> HTTPException:
 def current_user(request: Request, db: Session = Depends(get_db)) -> User:
     user_id = request.session.get("user_id")
     user = db.get(User, user_id) if user_id else None
-    if user is None or not user.active:
+    if user is None or not user.active or not role_is_active(user.role):
+        request.session.clear()  # a paused role is signed out on its next request
         raise _redirect_to_login(request)
     request.state.user = user
     return user
@@ -61,7 +84,9 @@ def _safe_next(value: str | None) -> str:
 
 @router.get("/login")
 def login_form(request: Request, next: str | None = None):
-    return render(request, "login.html", next=_safe_next(next), error=None)
+    return render(
+        request, "login.html", next=_safe_next(next), error=None, paused_note=_paused_note()
+    )
 
 
 @router.post("/login")
@@ -80,6 +105,16 @@ def login_submit(
             status_code=401,
             next=_safe_next(next),
             error="Wrong username or password.",
+            paused_note=_paused_note(),
+        )
+    if not role_is_active(user.role):
+        return render(
+            request,
+            "login.html",
+            status_code=403,
+            next=_safe_next(next),
+            error=f"The {user.role} account is paused while the judge view is tested.",
+            paused_note=_paused_note(),
         )
     request.session.clear()
     request.session["user_id"] = user.id

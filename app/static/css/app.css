@@ -70,7 +70,14 @@ input[type=radio], input[type=checkbox] { width: auto; min-height: 0; margin: 0 
 .money-input { display: flex; align-items: center; gap: 0.4rem; }
 .choices { display: flex; flex-direction: column; gap: 0.35rem; }
 .choice { display: flex; align-items: center; padding: 0.45rem 0.25rem; font-weight: 400; cursor: pointer; }
-.has-error input { border-color: var(--danger); }
+.has-error input, .has-error select { border-color: var(--danger); }
+fieldset.has-error { border-left: 3px solid var(--danger); padding-left: 0.6rem; }
+/* /find: the role dropdown swaps the tenant and landlord questions in place. */
+.role-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
+.role-select select { font-weight: 600; }
+.role-select .btn { margin-top: 0.5rem; }
+.choice.not-sure { padding-top: 0.35rem; color: var(--muted); }
+.intake input:disabled { opacity: 0.55; }
 .error, .error-summary { color: var(--danger); font-weight: 600; margin: 0.3rem 0; }
 .btn {
   display: inline-block; font: inherit; font-weight: 600; padding: 0.65rem 1.1rem; border-radius: 6px;
